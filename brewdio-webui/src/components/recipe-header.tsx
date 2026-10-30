@@ -12,6 +12,7 @@ import { recipeKeys } from "@/lib/db/recipes";
 import { getBackend } from "@/lib/db/app-db";
 import { useQueryClient } from "@tanstack/react-query";
 import { getStyles, type EquipmentProfile, type RecipeTypeType, type RecipeStyleType, type StyleCategories } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 interface RecipeHeaderProps {
   recipe: RecipeDocument;
@@ -30,6 +31,7 @@ export function RecipeHeader({
   batch,
   onBatchUpdate,
 }: RecipeHeaderProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isBatchMode = !!batch;
 
@@ -143,7 +145,7 @@ export function RecipeHeader({
             value={displayName}
             onSave={handleNameUpdate}
             displayAs="heading"
-            placeholder={isBatchMode ? "Batch name" : "Recipe name"}
+            placeholder={isBatchMode ? t("batches.namePlaceholder") : t("recipes.namePlaceholderShort")}
           />
           {isBatchMode && brewDateInputValue && (
             <Input
@@ -155,7 +157,7 @@ export function RecipeHeader({
           )}
           {!isBatchMode && recipe.recipe.author && (
             <p className="text-xs text-muted-foreground/70 shrink-0">
-              by {recipe.recipe.author}
+              {t("common.by")} {recipe.recipe.author}
             </p>
           )}
         </div>

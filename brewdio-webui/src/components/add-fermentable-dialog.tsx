@@ -24,6 +24,7 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getFermentables } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 interface AddFermentableDialogProps {
   existingFermentable?: FermentableAdditionType;
@@ -42,6 +43,7 @@ export function AddFermentableDialog({
   open: controlledOpen,
   onOpenChange,
 }: AddFermentableDialogProps) {
+  const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -106,18 +108,22 @@ export function AddFermentableDialog({
           {trigger || (
             <Button size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Fermentable
+              {t("ingredients.fermentable.add")}
             </Button>
           )}
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Fermentable" : "Add Fermentable"}</DialogTitle>
+          <DialogTitle>
+            {isEditing
+              ? t("ingredients.fermentable.edit")
+              : t("ingredients.fermentable.add")}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update the fermentable details."
-              : "Select a fermentable and specify the amount to add to your recipe."}
+              ? t("ingredients.fermentable.editDescription")
+              : t("ingredients.fermentable.addDescription")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -132,12 +138,12 @@ export function AddFermentableDialog({
             name="fermentableName"
             validators={{
               onChange: ({ value }) =>
-                !value ? "Fermentable selection is required" : undefined,
+                !value ? t("ingredients.fermentable.selectionRequired") : undefined,
             }}
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Fermentable</Label>
+                <Label htmlFor={field.name}>{t("ingredients.fermentable.label")}</Label>
                 <Combobox
                   options={getFermentables().map((f) => ({
                     value: f.name,
@@ -145,9 +151,9 @@ export function AddFermentableDialog({
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}
-                  placeholder="Select a fermentable"
-                  searchPlaceholder="Search fermentables..."
-                  emptyText="No fermentable found."
+                  placeholder={t("ingredients.fermentable.select")}
+                  searchPlaceholder={t("ingredients.fermentable.search")}
+                  emptyText={t("ingredients.fermentable.notFound")}
                 />
                 {field.state.meta.errors && (
                   <p className="text-sm text-destructive">
@@ -165,7 +171,7 @@ export function AddFermentableDialog({
                 onChange: ({ value }) => {
                   const num = parseFloat(value);
                   if (isNaN(num) || num <= 0) {
-                    return "Amount must be a positive number";
+                    return t("ingredients.amountPositive");
                   }
                   return undefined;
                 },
@@ -173,7 +179,7 @@ export function AddFermentableDialog({
             >
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Amount</Label>
+                  <Label htmlFor={field.name}>{t("common.amount")}</Label>
                   <Input
                     id={field.name}
                     type="number"
@@ -196,7 +202,7 @@ export function AddFermentableDialog({
             <form.Field name="unit">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Unit</Label>
+                  <Label htmlFor={field.name}>{t("common.unit")}</Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(v) => field.handleChange(v as typeof field.state.value)}
@@ -223,7 +229,7 @@ export function AddFermentableDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <form.Subscribe
               selector={(state) => [state.canSubmit, state.isSubmitting]}
@@ -232,11 +238,11 @@ export function AddFermentableDialog({
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
                   {isSubmitting
                     ? isEditing
-                      ? "Updating..."
-                      : "Adding..."
+                      ? t("common.updating")
+                      : t("common.adding")
                     : isEditing
-                    ? "Update Fermentable"
-                    : "Add Fermentable"}
+                    ? t("ingredients.fermentable.update")
+                    : t("ingredients.fermentable.add")}
                 </Button>
               )}
             </form.Subscribe>

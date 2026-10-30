@@ -24,6 +24,7 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getHops } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 interface AddHopDialogProps {
   existingHop?: HopAdditionType;
@@ -42,6 +43,7 @@ export function AddHopDialog({
   open: controlledOpen,
   onOpenChange,
 }: AddHopDialogProps) {
+  const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
@@ -129,18 +131,20 @@ export function AddHopDialog({
           {trigger || (
             <Button size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Hop
+              {t("ingredients.hop.add")}
             </Button>
           )}
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Hop" : "Add Hop"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? t("ingredients.hop.edit") : t("ingredients.hop.add")}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update the hop details."
-              : "Select a hop variety and specify when and how to add it to your recipe."}
+              ? t("ingredients.hop.editDescription")
+              : t("ingredients.hop.addDescription")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -155,12 +159,12 @@ export function AddHopDialog({
             name="hopName"
             validators={{
               onChange: ({ value }) =>
-                !value ? "Hop selection is required" : undefined,
+                !value ? t("ingredients.hop.selectionRequired") : undefined,
             }}
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Hop Variety</Label>
+                <Label htmlFor={field.name}>{t("ingredients.hop.variety")}</Label>
                 <Combobox
                   options={getHops().map((h) => ({
                     value: h.name,
@@ -168,9 +172,9 @@ export function AddHopDialog({
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}
-                  placeholder="Select a hop"
-                  searchPlaceholder="Search hops..."
-                  emptyText="No hop found."
+                  placeholder={t("ingredients.hop.select")}
+                  searchPlaceholder={t("ingredients.hop.search")}
+                  emptyText={t("ingredients.hop.notFound")}
                 />
                 {field.state.meta.errors && (
                   <p className="text-sm text-destructive">
@@ -184,7 +188,7 @@ export function AddHopDialog({
           <form.Field name="use">
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Addition Type</Label>
+                <Label htmlFor={field.name}>{t("ingredients.hop.additionType")}</Label>
                 <Select
                   value={field.state.value}
                   onValueChange={(newValue) => {
@@ -208,8 +212,10 @@ export function AddHopDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="add_to_boil">Boil</SelectItem>
-                    <SelectItem value="add_to_fermentation">Fermentation (Dry Hop)</SelectItem>
+                    <SelectItem value="add_to_boil">{t("ingredients.hop.boil")}</SelectItem>
+                    <SelectItem value="add_to_fermentation">
+                      {t("ingredients.hop.fermentationDryHop")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -223,7 +229,7 @@ export function AddHopDialog({
                 onChange: ({ value }) => {
                   const num = parseFloat(value);
                   if (isNaN(num) || num <= 0) {
-                    return "Amount must be a positive number";
+                    return t("ingredients.amountPositive");
                   }
                   return undefined;
                 },
@@ -231,7 +237,7 @@ export function AddHopDialog({
             >
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Amount</Label>
+                  <Label htmlFor={field.name}>{t("common.amount")}</Label>
                   <Input
                     id={field.name}
                     type="number"
@@ -254,7 +260,7 @@ export function AddHopDialog({
             <form.Field name="unit">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Unit</Label>
+                  <Label htmlFor={field.name}>{t("common.unit")}</Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(v) => field.handleChange(v as typeof field.state.value)}
@@ -286,7 +292,7 @@ export function AddHopDialog({
                       onChange: ({ value }) => {
                         const num = parseFloat(value);
                         if (isNaN(num) || num < 0) {
-                          return "Time must be a non-negative number";
+                          return t("ingredients.hop.timeNonNegative");
                         }
                         return undefined;
                       },
@@ -295,7 +301,9 @@ export function AddHopDialog({
                     {(field) => (
                       <div className="space-y-2">
                         <Label htmlFor={field.name}>
-                          {isBoil ? "Boil Time (minutes)" : "Add After (days)"}
+                          {isBoil
+                            ? t("ingredients.hop.boilTimeMinutes")
+                            : t("ingredients.hop.addAfterDays")}
                         </Label>
                         <Input
                           id={field.name}
@@ -309,7 +317,7 @@ export function AddHopDialog({
                         />
                         {!isBoil && (
                           <p className="text-xs text-muted-foreground">
-                            Days into fermentation before adding
+                            {t("ingredients.hop.daysIntoFermentation")}
                           </p>
                         )}
                         {field.state.meta.errors && (
@@ -332,7 +340,7 @@ export function AddHopDialog({
                           }
                           const num = parseFloat(value);
                           if (isNaN(num) || num <= 0) {
-                            return "Duration must be a positive number or empty for unlimited";
+                            return t("ingredients.hop.durationPositiveOrEmpty");
                           }
                           return undefined;
                         },
@@ -340,7 +348,9 @@ export function AddHopDialog({
                     >
                       {(field) => (
                         <div className="space-y-2">
-                          <Label htmlFor={field.name}>Duration (days) - Optional</Label>
+                          <Label htmlFor={field.name}>
+                            {t("ingredients.hop.durationOptional")}
+                          </Label>
                           <Input
                             id={field.name}
                             type="number"
@@ -349,10 +359,10 @@ export function AddHopDialog({
                             value={field.state.value}
                             onBlur={field.handleBlur}
                             onChange={(e) => field.handleChange(e.target.value)}
-                            placeholder="Leave empty for unlimited"
+                            placeholder={t("ingredients.hop.unlimitedPlaceholder")}
                           />
                           <p className="text-xs text-muted-foreground">
-                            How long to leave hops in fermenter (empty = unlimited)
+                            {t("ingredients.hop.durationHelp")}
                           </p>
                           {field.state.meta.errors && (
                             <p className="text-sm text-destructive">
@@ -374,7 +384,7 @@ export function AddHopDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <form.Subscribe
               selector={(state) => [state.canSubmit, state.isSubmitting]}
@@ -383,11 +393,11 @@ export function AddHopDialog({
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
                   {isSubmitting
                     ? isEditing
-                      ? "Updating..."
-                      : "Adding..."
+                      ? t("common.updating")
+                      : t("common.adding")
                     : isEditing
-                    ? "Update Hop"
-                    : "Add Hop"}
+                    ? t("ingredients.hop.update")
+                    : t("ingredients.hop.add")}
                 </Button>
               )}
             </form.Subscribe>

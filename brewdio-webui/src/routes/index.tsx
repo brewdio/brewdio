@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomeComponent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const { data: recipes, status: recipesStatus } = useRecipes();
   const { data: batches, status: batchesStatus } = useBatches();
@@ -29,10 +29,12 @@ function HomeComponent() {
   const recentBatches = sortedBatches.slice(0, 6); // Show 6 most recent
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    const locale = i18n.resolvedLanguage?.startsWith("nb") ? "nb-NO" : "en-US";
+
+    return new Date(timestamp).toLocaleDateString(locale, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -44,15 +46,15 @@ function HomeComponent() {
       {/* Recipes Section */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">{t("recipes")}</h1>
+          <h1 className="text-3xl font-bold">{t("recipes.title")}</h1>
           <CreateRecipeDialog />
         </div>
 
-        {recipesStatus === "pending" && <div>Loading recipes...</div>}
+        {recipesStatus === "pending" && <div>{t("recipes.loading")}</div>}
 
         {recipesStatus === "success" && recipes.length === 0 && (
           <div className="text-muted-foreground text-center py-12">
-            No recipes yet. Create your first recipe to get started!
+            {t("recipes.empty")}
           </div>
         )}
 
@@ -69,13 +71,13 @@ function HomeComponent() {
                     {recipeDoc.recipe.name}
                   </h2>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <div>Type: {recipeDoc.recipe.type}</div>
+                    <div>{t("recipes.typeLabel")}: {recipeDoc.recipe.type}</div>
                     <div>
-                      Batch Size: {recipeDoc.recipe.batch_size.value}{" "}
+                      {t("recipes.batchSizeLabel")}: {recipeDoc.recipe.batch_size.value}{" "}
                       {recipeDoc.recipe.batch_size.unit}
                     </div>
                     {recipeDoc.recipe.style && (
-                      <div>Style: {recipeDoc.recipe.style.name}</div>
+                      <div>{t("recipes.styleLabel")}: {recipeDoc.recipe.style.name}</div>
                     )}
                   </div>
                 </Link>
@@ -98,15 +100,15 @@ function HomeComponent() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Beaker className="h-6 w-6" />
-            Recent Batches
+            {t("batches.recent")}
           </h2>
         </div>
 
-        {batchesStatus === "pending" && <div>Loading batches...</div>}
+        {batchesStatus === "pending" && <div>{t("batches.loading")}</div>}
 
         {batchesStatus === "success" && batches.length === 0 && (
           <div className="text-muted-foreground text-center py-8 border rounded-lg">
-            No batches yet. Click "Brew" on a recipe to start your first batch!
+            {t("batches.empty")}
           </div>
         )}
 
@@ -124,8 +126,8 @@ function HomeComponent() {
                   <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 </div>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <div>Recipe: {batch.recipe.name}</div>
-                  <div>Brewed: {formatDate(batch.brewDate)}</div>
+                  <div>{t("batches.recipeLabel")}: {batch.recipe.name}</div>
+                  <div>{t("batches.brewedLabel")}: {formatDate(batch.brewDate)}</div>
                   <div>
                     {batch.recipe.batch_size.value} {batch.recipe.batch_size.unit}
                     {batch.recipe.style && ` • ${batch.recipe.style.name}`}
@@ -138,7 +140,7 @@ function HomeComponent() {
 
         {batchesStatus === "success" && batches.length > 6 && (
           <div className="text-center text-sm text-muted-foreground">
-            Showing 6 most recent batches
+            {t("batches.showingRecent", { count: 6 })}
           </div>
         )}
       </div>

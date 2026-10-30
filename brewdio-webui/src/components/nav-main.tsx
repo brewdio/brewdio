@@ -1,5 +1,6 @@
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import {
   Collapsible,
@@ -31,9 +32,11 @@ export function NavMain({
     }[];
   }[];
 }) {
+  const { t } = useTranslation();
+
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel>{t("navigation.title")}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <Collapsible
