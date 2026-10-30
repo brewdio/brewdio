@@ -31,6 +31,7 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
   const navigate = useNavigate();
   const { data: settings } = useSettings();
   const availableStyles = getAvailableStyles();
+  const batchSizeUnit = settings?.defaultVolumeUnit ?? "gal";
 
   const form = useForm({
     defaultValues: {
@@ -43,6 +44,7 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
         const recipeId = await createRecipe({
           name: value.name,
           batchSize: parseFloat(value.batchSize),
+          batchSizeUnit,
           styleName: value.styleName,
           author: settings?.defaultAuthor || "Brewdio User",
         });
@@ -125,7 +127,9 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>{t("recipes.batchSizeGallonsLabel")}</Label>
+                <Label htmlFor={field.name}>
+                  {t("recipes.batchSizeWithUnitLabel", { unit: batchSizeUnit })}
+                </Label>
                 <Input
                   id={field.name}
                   type="number"

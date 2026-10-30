@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DeleteBatchDialogProps {
   batchId: string;
@@ -32,6 +33,7 @@ export function DeleteBatchDialog({
   showIcon = true,
   redirectOnDelete = false,
 }: DeleteBatchDialogProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
@@ -58,25 +60,25 @@ export function DeleteBatchDialog({
       <AlertDialogTrigger asChild>
         <Button variant={variant} size={size}>
           {showIcon && <Trash2 className="h-4 w-4" />}
-          {size !== "icon" && (showIcon ? <span className="ml-2">Delete</span> : "Delete")}
+          {size !== "icon" && (showIcon ? <span className="ml-2">{t("common.delete")}</span> : t("common.delete"))}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete Batch?</AlertDialogTitle>
+          <AlertDialogTitle>{t("batches.deleteTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete <strong>{batchName}</strong>? This action cannot be undone.
-            This will only delete the batch record, not the original recipe.
+            {t("batches.deleteConfirmationBefore")} <strong>{batchName}</strong>?{" "}
+            {t("batches.deleteConfirmationAfter")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDelete}
             disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isDeleting ? t("batches.deleting") : t("common.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,11 +1,11 @@
 import { createRecipeImperative, updateRecipeImperative, deleteRecipeImperative } from '@/lib/db/recipes';
-import type { RecipeType, StyleType } from 'brewdio-wasm';
+import type { RecipeType, StyleType, VolumeUnitType } from 'brewdio-wasm';
 import { getStyles, getMashProfiles } from 'brewdio-wasm';
 
 export interface CreateRecipeParams {
   name: string;
   batchSize: number;
-  batchSizeUnit?: 'gal' | 'l';
+  batchSizeUnit?: VolumeUnitType;
   styleName: string;
   author?: string;
 }

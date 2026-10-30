@@ -11,12 +11,14 @@ import { stores } from "@/lib/calculate";
 import { Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { RecipeType } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/batches/$batchId")({
   component: BatchDetailComponent,
 });
 
 function BatchDetailComponent() {
+  const { t, i18n } = useTranslation();
   const { batchId } = Route.useParams();
   const { data: batch, status } = useBatch(batchId);
   const queryClient = useQueryClient();
@@ -76,20 +78,23 @@ function BatchDetailComponent() {
   }, [batch]);
 
   if (status === "pending") {
-    return <div>Loading batch...</div>;
+    return <div>{t("batches.loadingOne")}</div>;
   }
 
   if (!batch) {
-    return <div>Batch not found</div>;
+    return <div>{t("batches.notFound")}</div>;
   }
 
   // Format brew date
   const brewDate = new Date(batch.brewDate);
-  const brewDateStr = brewDate.toLocaleDateString("en-US", {
+  const brewDateStr = brewDate.toLocaleDateString(
+    i18n.resolvedLanguage?.startsWith("nb") ? "nb-NO" : "en-US",
+    {
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
+    }
+  );
 
   // Use the original recipe's current name, falling back to the batch's copy
   const originalRecipeName = originalRecipe?.recipe.name ?? batch.recipe.name;
@@ -108,8 +113,8 @@ function BatchDetailComponent() {
         recipe={batch.recipe}
         equipment={batch.equipment}
         updateRecipe={updateRecipe}
-        notesLabel="Batch Notes"
-        notesPlaceholder="Add brewing notes, observations, adjustments made during brewing, tasting notes, etc..."
+        notesLabel={t("batches.notesLabel")}
+        notesPlaceholder={t("batches.notesPlaceholder")}
         headerSlot={
           <RecipeHeader
             recipe={recipeDoc}
@@ -122,13 +127,14 @@ function BatchDetailComponent() {
           <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900">
             <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <AlertDescription className="text-blue-900 dark:text-blue-100">
-              {"Brewed on " + brewDateStr + ". Changes only affect this batch. "}
+              {t("batches.brewedOn", { date: brewDateStr })}{" "}
+              {t("batches.changesOnlyAffectBatch")}{" "}
               <Link
                 to="/recipes/$recipeId"
                 params={{ recipeId: batch.recipeId }}
                 className="underline hover:text-blue-700 dark:hover:text-blue-300"
               >
-                View {originalRecipeName}
+                {t("batches.viewRecipe", { recipeName: originalRecipeName })}
               </Link>
             </AlertDescription>
           </Alert>

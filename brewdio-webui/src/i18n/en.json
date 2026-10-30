@@ -9,13 +9,67 @@
     "amount": "Amount",
     "unit": "Unit",
     "adding": "Adding...",
-    "updating": "Updating..."
+    "updating": "Updating...",
+    "continue": "Continue"
   },
   "navigation": {
     "title": "Navigation",
     "home": "Home",
     "brewery": "Brewery",
     "docs": "Docs"
+  },
+  "settings": {
+    "loading": "Loading settings...",
+    "title": "Settings",
+    "description": "Configure your preferences for the brewing app.",
+    "recipeDefaults": {
+      "title": "Recipe Defaults",
+      "description": "These values will be used when creating new recipes.",
+      "defaultAuthor": "Default Author",
+      "authorPlaceholder": "Your name",
+      "authorHelp": "This name will be used as the author for new recipes."
+    },
+    "ai": {
+      "title": "AI Assistant",
+      "description": "Configure your AI model provider for the chat assistant.",
+      "apiKeyLabel": "OpenAI API Key",
+      "apiKeyHelp": "Your API key is stored locally and never sent to our servers."
+    },
+    "editor": {
+      "title": "Editor Preferences",
+      "vimMode": "Enable Vim mode in JSON editor"
+    },
+    "units": {
+      "title": "Default Units",
+      "description": "These units will be pre-selected when adding ingredients to recipes.",
+      "volume": "Volume",
+      "mass": "Mass",
+      "temperature": "Temperature",
+      "celsius": "Celsius (°C)",
+      "fahrenheit": "Fahrenheit (°F)"
+    },
+    "actions": {
+      "saveChanges": "Save Changes",
+      "noChanges": "No Changes",
+      "reset": "Reset"
+    },
+    "sync": {
+      "title": "Sync",
+      "description": "Connect to a sync server to keep recipes, batches, and settings in sync across devices.",
+      "serverUrl": "Server URL",
+      "clientOutdatedMessage": "App version is incompatible with the sync server. Please refresh the page to load the latest version.",
+      "refreshPage": "Refresh Page",
+      "serverOutdatedMessage": "The sync server is running an older version. Please update the server to continue syncing.",
+      "connect": "Connect",
+      "disconnect": "Disconnect",
+      "status": {
+        "connected": "Connected",
+        "connecting": "Connecting",
+        "disconnected": "Disconnected",
+        "clientOutdated": "Incompatible - Update App",
+        "serverOutdated": "Incompatible - Update Server"
+      }
+    }
   },
   "recipes": {
     "title": "Recipes",
@@ -41,7 +95,7 @@
     "nameLabel": "Recipe Name",
     "namePlaceholder": "e.g., West Coast IPA",
     "nameRequired": "Recipe name is required",
-    "batchSizeGallonsLabel": "Batch Size (gallons)",
+    "batchSizeWithUnitLabel": "Batch Size ({{unit}})",
     "batchSizePositive": "Batch size must be a positive number",
     "beerStyleLabel": "Beer Style",
     "styleRequired": "Style selection is required",
@@ -119,9 +173,47 @@
       "notFound": "No culture found."
     }
   },
+  "equipment": {
+    "profile": "Equipment Profile",
+    "profileHelp": "This equipment profile will be used for water calculations and brew day planning.",
+    "none": "No Equipment",
+    "changeTitle": "Change Equipment",
+    "changeDescriptionBefore": "This will set brewhouse efficiency to",
+    "changeDescriptionAfter": "overwriting the current value. Continue?"
+  },
+  "brewery": {
+    "deleteProfileTitle": "Delete Equipment Profile?",
+    "deleteProfileDescription": "Are you sure you want to delete {{profileName}}? This action cannot be undone.",
+    "profileCreateFailed": "The equipment profile could not be created.",
+    "profileSaveFailed": "The equipment profile could not be saved.",
+    "profileDeleteFailed": "The equipment profile could not be deleted."
+  },
   "batches": {
     "title": "Batches",
     "namePlaceholder": "Batch name",
+    "nameLabel": "Batch Name",
+    "defaultName": "{{recipeName}} Batch {{number}}",
+    "brewAction": "Brew",
+    "brewTitle": "Brew New Batch",
+    "brewDescription": "Create a new batch from this recipe. You can customize the batch name and select your equipment profile.",
+    "createAction": "Create Batch",
+    "creating": "Creating...",
+    "loadingOne": "Loading batch...",
+    "notFound": "Batch not found",
+    "deleteTitle": "Delete Batch?",
+    "deleteConfirmationBefore": "Are you sure you want to delete",
+    "deleteConfirmationAfter": "This action cannot be undone. This will only delete the batch record, not the original recipe.",
+    "deleting": "Deleting...",
+    "notesLabel": "Batch Notes",
+    "notesPlaceholder": "Add brewing notes, observations, adjustments made during brewing, tasting notes, etc...",
+    "brewedOn": "Brewed on {{date}}.",
+    "changesOnlyAffectBatch": "Changes only affect this batch.",
+    "viewRecipe": "View {{recipeName}}",
+    "allFromRecipe": "All batches brewed from {{recipeName}}",
+    "noneYet": "No batches yet",
+    "noneForRecipeDescription": "You haven't brewed this recipe yet. Start by clicking the Brew button.",
+    "total_one": "Total: {{count}} batch",
+    "total_other": "Total: {{count}} batches",
     "recent": "Recent Batches",
     "loading": "Loading batches...",
     "empty": "No batches yet. Click \"Brew\" on a recipe to start your first batch!",

@@ -9,13 +9,67 @@
     "amount": "Mengde",
     "unit": "Enhet",
     "adding": "Legger til...",
-    "updating": "Oppdaterer..."
+    "updating": "Oppdaterer...",
+    "continue": "Fortsett"
   },
   "navigation": {
     "title": "Navigasjon",
     "home": "Hjem",
     "brewery": "Bryggeri",
     "docs": "Dokumentasjon"
+  },
+  "settings": {
+    "loading": "Laster innstillinger...",
+    "title": "Innstillinger",
+    "description": "Tilpass innstillingene for bryggeappen.",
+    "recipeDefaults": {
+      "title": "Standardverdier for oppskrifter",
+      "description": "Disse verdiene brukes når du oppretter nye oppskrifter.",
+      "defaultAuthor": "Standardforfatter",
+      "authorPlaceholder": "Navnet ditt",
+      "authorHelp": "Dette navnet brukes som forfatter på nye oppskrifter."
+    },
+    "ai": {
+      "title": "KI-assistent",
+      "description": "Konfigurer leverandøren av KI-modellen for chatassistenten.",
+      "apiKeyLabel": "OpenAI API-nøkkel",
+      "apiKeyHelp": "API-nøkkelen lagres lokalt og sendes aldri til serverne våre."
+    },
+    "editor": {
+      "title": "Redigeringsinnstillinger",
+      "vimMode": "Aktiver Vim-modus i JSON-redigeringen"
+    },
+    "units": {
+      "title": "Standardenheter",
+      "description": "Disse enhetene forhåndsvelges når du legger til ingredienser i oppskrifter.",
+      "volume": "Volum",
+      "mass": "Masse",
+      "temperature": "Temperatur",
+      "celsius": "Celsius (°C)",
+      "fahrenheit": "Fahrenheit (°F)"
+    },
+    "actions": {
+      "saveChanges": "Lagre endringer",
+      "noChanges": "Ingen endringer",
+      "reset": "Tilbakestill"
+    },
+    "sync": {
+      "title": "Synkronisering",
+      "description": "Koble til en synkroniseringsserver for å holde oppskrifter, brygg og innstillinger synkronisert på tvers av enheter.",
+      "serverUrl": "Serveradresse",
+      "clientOutdatedMessage": "Appversjonen er ikke kompatibel med synkroniseringsserveren. Oppdater siden for å laste inn den nyeste versjonen.",
+      "refreshPage": "Oppdater siden",
+      "serverOutdatedMessage": "Synkroniseringsserveren kjører en eldre versjon. Oppdater serveren for å fortsette synkroniseringen.",
+      "connect": "Koble til",
+      "disconnect": "Koble fra",
+      "status": {
+        "connected": "Tilkoblet",
+        "connecting": "Kobler til",
+        "disconnected": "Frakoblet",
+        "clientOutdated": "Ikke kompatibel – oppdater appen",
+        "serverOutdated": "Ikke kompatibel – oppdater serveren"
+      }
+    }
   },
   "recipes": {
     "title": "Oppskrifter",
@@ -41,7 +95,7 @@
     "nameLabel": "Navn på oppskrift",
     "namePlaceholder": "f.eks. West Coast IPA",
     "nameRequired": "Du må skrive inn et navn på oppskriften",
-    "batchSizeGallonsLabel": "Bryggvolum (gallons)",
+    "batchSizeWithUnitLabel": "Bryggvolum ({{unit}})",
     "batchSizePositive": "Bryggvolumet må være et positivt tall",
     "beerStyleLabel": "Ølstil",
     "styleRequired": "Du må velge en ølstil",
@@ -119,9 +173,47 @@
       "notFound": "Fant ingen gjærkultur."
     }
   },
+  "equipment": {
+    "profile": "Utstyrsprofil",
+    "profileHelp": "Denne utstyrsprofilen brukes til vannberegninger og planlegging av bryggedagen.",
+    "none": "Ingen utstyrsprofil",
+    "changeTitle": "Bytt utstyrsprofil",
+    "changeDescriptionBefore": "Dette setter brygghuseffektiviteten til",
+    "changeDescriptionAfter": "og overskriver gjeldende verdi. Vil du fortsette?"
+  },
+  "brewery": {
+    "deleteProfileTitle": "Slette utstyrsprofilen?",
+    "deleteProfileDescription": "Er du sikker på at du vil slette {{profileName}}? Dette kan ikke angres.",
+    "profileCreateFailed": "Utstyrsprofilen kunne ikke opprettes.",
+    "profileSaveFailed": "Utstyrsprofilen kunne ikke lagres.",
+    "profileDeleteFailed": "Utstyrsprofilen kunne ikke slettes."
+  },
   "batches": {
     "title": "Brygg",
     "namePlaceholder": "Navn på brygg",
+    "nameLabel": "Navn på brygg",
+    "defaultName": "{{recipeName}} – brygg {{number}}",
+    "brewAction": "Brygg",
+    "brewTitle": "Start nytt brygg",
+    "brewDescription": "Opprett et nytt brygg fra denne oppskriften. Du kan tilpasse navnet og velge utstyrsprofil.",
+    "createAction": "Opprett brygg",
+    "creating": "Oppretter...",
+    "loadingOne": "Laster brygg...",
+    "notFound": "Fant ikke brygget",
+    "deleteTitle": "Slette brygget?",
+    "deleteConfirmationBefore": "Er du sikker på at du vil slette",
+    "deleteConfirmationAfter": "Dette kan ikke angres. Bare brygget slettes, ikke den opprinnelige oppskriften.",
+    "deleting": "Sletter...",
+    "notesLabel": "Bryggnotater",
+    "notesPlaceholder": "Legg til bryggenotater, observasjoner, justeringer under bryggingen, smaksnotater og lignende...",
+    "brewedOn": "Brygget {{date}}.",
+    "changesOnlyAffectBatch": "Endringer påvirker bare dette brygget.",
+    "viewRecipe": "Vis {{recipeName}}",
+    "allFromRecipe": "Alle brygg basert på {{recipeName}}",
+    "noneYet": "Ingen brygg ennå",
+    "noneForRecipeDescription": "Du har ikke brygget denne oppskriften ennå. Start ved å klikke på Brygg-knappen.",
+    "total_one": "Totalt: {{count}} brygg",
+    "total_other": "Totalt: {{count}} brygg",
     "recent": "Nylige brygg",
     "loading": "Laster brygg...",
     "empty": "Ingen brygg ennå. Klikk «Brygg» på en oppskrift for å starte ditt første brygg!",

@@ -19,13 +19,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Trash2 } from "lucide-react";
 import { BreweryVisualization, type TankShape } from "@/components/brewery-visualization";
 import { BreweryBatchSettings } from "@/components/brewery-batch-settings";
 import { BreweryLossControls, type CalculatedStage } from "@/components/brewery-loss-controls";
 import { getEquipment } from "brewdio-wasm";
-import type { EquipmentItemType } from "brewdio-wasm";
+import type { EquipmentItemType, EquipmentProfile } from "brewdio-wasm";
 import { volumeToGallons, specificVolumeToGallonsPerKilogram } from "brewdio-wasm";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  createEquipmentProfileImperative,
+  deleteEquipmentProfileImperative,
+  invalidateEquipmentProfiles,
+  updateEquipmentProfileImperative,
+  useEquipmentProfiles,
+} from "@/lib/db/equipment";
+import { useTranslation } from "react-i18next";
+import { useSettings } from "@/lib/db/settings";
+import { gallonsToUnit, unitToGallons } from "@/lib/volume-units";
 
 export const Route = createFileRoute("/brewery")({
   component: BreweryComponent,
@@ -80,18 +101,20 @@ function getLossLabel(item: EquipmentItemType): string {
 }
 
 function BreweryComponent() {
-  // Static equipment data from WASM (read-only for now)
-  const equipmentProfiles = useMemo(() => {
-    const profiles = getEquipment();
-    return profiles.map((e) => ({
-      id: e.equipment.name.toLowerCase().replace(/\s+/g, '-'),
-      equipment: e.equipment,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    }));
-  }, []);
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data: settings } = useSettings();
+  const displayVolumeUnit = settings?.defaultVolumeUnit ?? "gal";
+  const { data: equipmentProfiles = [] } = useEquipmentProfiles();
+  const builtInProfileIds = useMemo(
+    () => new Set(getEquipment().map((profile) => profile.id)),
+    []
+  );
   const [selectedProfileId, setSelectedProfileId] = useState<string>(equipmentProfiles[0]?.id || "default");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileErrorKey, setProfileErrorKey] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState("");
 
   // Brewery state
@@ -109,14 +132,22 @@ function BreweryComponent() {
   const currentEquipment = equipmentProfiles?.find(
     (e) => e.id === selectedProfileId
   );
+  const isBuiltInProfile = builtInProfileIds.has(selectedProfileId);
 
   // Load equipment items into editable state when profile changes
   useEffect(() => {
     if (currentEquipment) {
-      setEditedEquipment(currentEquipment.equipment.equipment_items);
+      setEditedEquipment(structuredClone(currentEquipment.equipment.equipment_items));
       setHasChanges(false);
+      setProfileErrorKey(null);
     }
   }, [currentEquipment]);
+
+  useEffect(() => {
+    if (!currentEquipment && equipmentProfiles.length > 0) {
+      setSelectedProfileId(equipmentProfiles[0].id);
+    }
+  }, [currentEquipment, equipmentProfiles]);
 
   // Calculate water needs from equipment (use edited version if available)
   const calculationData = useMemo((): CalculationResult => {
@@ -191,18 +222,51 @@ function BreweryComponent() {
     selectedStageIndex > 0 ? calculationData.stages[selectedStageIndex] : null;
 
   const handleAddProfile = async () => {
-    // Equipment profiles are now static/read-only
-    // TODO: Add CRUD for equipment when needed
-    setIsAddDialogOpen(false);
+    const name = newProfileName.trim();
+    if (!name || !currentEquipment) return;
+
+    setIsSavingProfile(true);
+    setProfileErrorKey(null);
+    try {
+      const newProfile: EquipmentProfile = structuredClone(currentEquipment);
+      newProfile.id = "";
+      newProfile.equipment.name = name;
+
+      const id = await createEquipmentProfileImperative(newProfile);
+      await invalidateEquipmentProfiles(queryClient);
+      setSelectedProfileId(id);
+      setNewProfileName("");
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to create equipment profile:", error);
+      setProfileErrorKey("brewery.profileCreateFailed");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleDeleteProfile = async (_profileId: string) => {
-    // Equipment profiles are now static/read-only
-    // TODO: Add CRUD for equipment when needed
+  const handleDeleteProfile = async () => {
+    if (!currentEquipment || isBuiltInProfile) return;
+
+    setIsSavingProfile(true);
+    setProfileErrorKey(null);
+    try {
+      await deleteEquipmentProfileImperative(currentEquipment.id);
+      await invalidateEquipmentProfiles(queryClient);
+      setSelectedProfileId(equipmentProfiles.find((profile) =>
+        builtInProfileIds.has(profile.id)
+      )?.id ?? equipmentProfiles[0]?.id ?? "default");
+      setIsDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to delete equipment profile:", error);
+      setProfileErrorKey("brewery.profileDeleteFailed");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleLossChange = (stageIndex: number, newLossValue: number) => {
-    if (!editedEquipment || stageIndex <= 0) return;
+    if (isBuiltInProfile || !editedEquipment || stageIndex <= 0) return;
 
     const equipmentItemIndex = stageIndex - 1;
     const newEquipment = [...editedEquipment];
@@ -219,7 +283,7 @@ function BreweryComponent() {
   };
 
   const handleStageNameChange = (stageIndex: number, newName: string) => {
-    if (!editedEquipment || stageIndex <= 0) return;
+    if (isBuiltInProfile || !editedEquipment || stageIndex <= 0) return;
 
     const equipmentItemIndex = stageIndex - 1;
     const newEquipment = [...editedEquipment];
@@ -236,7 +300,7 @@ function BreweryComponent() {
   };
 
   const handleGrainAbsorptionChange = (stageIndex: number, newRate: number) => {
-    if (!editedEquipment || stageIndex <= 0) return;
+    if (isBuiltInProfile || !editedEquipment || stageIndex <= 0) return;
 
     const equipmentItemIndex = stageIndex - 1;
     const newEquipment = [...editedEquipment];
@@ -253,7 +317,7 @@ function BreweryComponent() {
   };
 
   const handleBoilRateChange = (stageIndex: number, newRate: number) => {
-    if (!editedEquipment || stageIndex <= 0) return;
+    if (isBuiltInProfile || !editedEquipment || stageIndex <= 0) return;
 
     const equipmentItemIndex = stageIndex - 1;
     const newEquipment = [...editedEquipment];
@@ -270,9 +334,28 @@ function BreweryComponent() {
   };
 
   const handleSave = async () => {
-    // Equipment profiles are static/read-only for now
-    // TODO: Add CRUD for equipment when needed
-    setHasChanges(false);
+    if (!currentEquipment || isBuiltInProfile || !editedEquipment) return;
+
+    setIsSavingProfile(true);
+    setProfileErrorKey(null);
+    try {
+      const updatedProfile: EquipmentProfile = {
+        ...structuredClone(currentEquipment),
+        equipment: {
+          ...structuredClone(currentEquipment.equipment),
+          equipment_items: structuredClone(editedEquipment),
+        },
+      };
+
+      await updateEquipmentProfileImperative(currentEquipment.id, updatedProfile);
+      await invalidateEquipmentProfiles(queryClient);
+      setHasChanges(false);
+    } catch (error) {
+      console.error("Failed to save equipment profile:", error);
+      setProfileErrorKey("brewery.profileSaveFailed");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleCancel = () => {
@@ -295,12 +378,12 @@ function BreweryComponent() {
 
         {/* Equipment Profile Selector and Actions - Right Side */}
         <div className="flex items-center gap-3">
-          {hasChanges && (
+          {hasChanges && !isBuiltInProfile && (
             <>
               <Button onClick={handleCancel} variant="outline">
                 Cancel
               </Button>
-              <Button onClick={handleSave}>Save Changes</Button>
+              <Button onClick={handleSave} disabled={isSavingProfile}>Save Changes</Button>
             </>
           )}
           <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
@@ -350,18 +433,21 @@ function BreweryComponent() {
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddProfile} disabled={!newProfileName.trim()}>
+                <Button
+                  onClick={handleAddProfile}
+                  disabled={!newProfileName.trim() || isSavingProfile}
+                >
                   Add Profile
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {selectedProfileId !== "default" && (
+          {!isBuiltInProfile && currentEquipment && (
             <Button
               variant="destructive"
               size="icon"
-              onClick={() => handleDeleteProfile(selectedProfileId)}
+              onClick={() => setIsDeleteDialogOpen(true)}
               title="Delete profile"
             >
               <Trash2 className="h-4 w-4" />
@@ -370,12 +456,42 @@ function BreweryComponent() {
         </div>
       </div>
 
+      {profileErrorKey && (
+        <p className="text-sm text-destructive">{t(profileErrorKey)}</p>
+      )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("brewery.deleteProfileTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("brewery.deleteProfileDescription", {
+                profileName: currentEquipment?.equipment.name ?? "",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSavingProfile}>
+              {t("common.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProfile}
+              disabled={isSavingProfile}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Visualization - Full Width */}
       <div className="mt-2">
         <BreweryVisualization
           stages={calculationData.stages}
           beerColor={beerColor}
           totalWaterNeeded={calculationData.totalWaterNeeded}
+          volumeUnit={displayVolumeUnit}
           selectedStageId={selectedStageId}
           onBeerColorChange={setBeerColor}
           onStageSelect={setSelectedStageId}
@@ -386,10 +502,13 @@ function BreweryComponent() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left - Batch Settings */}
         <BreweryBatchSettings
-          targetVolume={targetVolume}
+          targetVolume={gallonsToUnit(targetVolume, displayVolumeUnit)}
           boilTime={boilTime}
           grainWeight={grainWeight}
-          onTargetVolumeChange={setTargetVolume}
+          volumeUnit={displayVolumeUnit}
+          onTargetVolumeChange={(value) =>
+            setTargetVolume(unitToGallons(value, displayVolumeUnit))
+          }
           onBoilTimeChange={setBoilTime}
           onGrainWeightChange={setGrainWeight}
         />
@@ -404,6 +523,8 @@ function BreweryComponent() {
           onGrainAbsorptionChange={handleGrainAbsorptionChange}
           onBoilRateChange={handleBoilRateChange}
           onNameChange={handleStageNameChange}
+          readOnly={isBuiltInProfile}
+          volumeUnit={displayVolumeUnit}
         />
       </div>
     </div>

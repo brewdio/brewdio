@@ -1,4 +1,5 @@
 import React from 'react';
+import { gallonsToUnit, type DisplayVolumeUnit } from '@/lib/volume-units';
 
 // --- Types ---
 
@@ -18,6 +19,7 @@ interface BreweryVisualizationProps {
   stages: CalculatedStage[];
   beerColor: string;
   totalWaterNeeded: number;
+  volumeUnit: DisplayVolumeUnit;
   selectedStageId?: string | null;
   onBeerColorChange?: (color: string) => void;
   onStageSelect?: (stageId: string) => void;
@@ -42,10 +44,11 @@ const getTankPath = (shape: TankShape, w: number, h: number): string => {
     case 'dome': // Mash Tun
       return `M0,${h} V40 Q${w/2},0 ${w},40 V${h} Z`;
 
-    case 'chimney': // Kettle
+    case 'chimney': { // Kettle
       const neckW = w * 0.4;
       const neckX = (w - neckW) / 2;
       return `M0,${h} V40 H${neckX} V5 H${neckX + neckW} V40 H${w} V${h} Z`;
+    }
 
     case 'conical': // Fermenter
       return `M0,0 H${w} V${h} L${w/2},${h + CONE_DROP} L0,${h} Z`;
@@ -75,6 +78,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
   stages,
   beerColor,
   totalWaterNeeded,
+  volumeUnit,
   selectedStageId,
   onBeerColorChange,
   onStageSelect
@@ -103,7 +107,8 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
       <div className="absolute bottom-4 right-4 z-10">
         <div className="text-right">
           <div className="text-2xl font-black text-blue-400 tabular-nums">
-            {totalWaterNeeded.toFixed(2)} <span className="text-sm text-slate-400">gal</span>
+            {gallonsToUnit(totalWaterNeeded, volumeUnit).toFixed(2)}{" "}
+            <span className="text-sm text-slate-400">{volumeUnit}</span>
           </div>
           <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Total Start Volume</div>
         </div>
@@ -241,7 +246,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
 
                 {/* Volume text */}
                 <text x={TANK_WIDTH/2} y={CYLINDER_HEIGHT/2} textAnchor="middle" fill="white" fontSize="18" fontWeight="800" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                  {stage.volumeIn.toFixed(2)}
+                  {gallonsToUnit(stage.volumeIn, volumeUnit).toFixed(2)} {volumeUnit}
                 </text>
               </g>
 
@@ -277,7 +282,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
                         fontSize="10"
                         fontWeight="bold"
                       >
-                        -{stage.totalLoss.toFixed(2)}
+                        -{gallonsToUnit(stage.totalLoss, volumeUnit).toFixed(2)} {volumeUnit}
                       </text>
                     </g>
                   </g>

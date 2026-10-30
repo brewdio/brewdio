@@ -310,21 +310,22 @@ const components: Options['components'] = {
       />
     );
   },
-  pre: ({ node, className, children }) => {
+  pre: ({ className, children }) => {
     let language = 'javascript';
-
-    if (typeof node?.properties?.className === 'string') {
-      language = node.properties.className.replace('language-', '');
-    }
-
-    // Extract code content from children safely
     let code = '';
-    if (
-      isValidElement(children) &&
-      children.props &&
-      typeof (children.props as any).children === 'string'
-    ) {
-      code = (children.props as any).children;
+
+    if (isValidElement<{ className?: string; children?: unknown }>(children)) {
+      const languageMatch = /(?:^|\s)language-([\w-]+)/.exec(
+        children.props.className ?? ''
+      );
+
+      if (languageMatch) {
+        language = languageMatch[1];
+      }
+
+      if (typeof children.props.children === 'string') {
+        code = children.props.children;
+      }
     } else if (typeof children === 'string') {
       code = children;
     }

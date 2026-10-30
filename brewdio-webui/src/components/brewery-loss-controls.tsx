@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Pencil, Check, X } from "lucide-react";
 import type { CalculatedStage } from "@/components/brewery-visualization";
 import type { EquipmentItemType } from "brewdio-wasm";
-import { volumeToGallons } from "brewdio-wasm";
+import { specificVolumeToGallonsPerKilogram, volumeToGallons } from "brewdio-wasm";
+import { gallonsToUnit, type DisplayVolumeUnit } from "@/lib/volume-units";
 
 // Export CalculatedStage type from brewery-visualization to avoid duplication
 export type { CalculatedStage };
@@ -29,6 +30,8 @@ interface BreweryLossControlsProps {
   onGrainAbsorptionChange?: (stageIndex: number, newRate: number) => void;
   onBoilRateChange?: (stageIndex: number, newRate: number) => void;
   onNameChange: (stageIndex: number, newName: string) => void;
+  readOnly?: boolean;
+  volumeUnit: DisplayVolumeUnit;
 }
 
 export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
@@ -40,12 +43,14 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
   onGrainAbsorptionChange,
   onBoilRateChange,
   onNameChange,
+  readOnly = false,
+  volumeUnit,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
 
   const handleStartEditName = () => {
-    if (stage) {
+    if (stage && !readOnly) {
       setEditedName(stage.label);
       setIsEditingName(true);
     }
@@ -82,7 +87,10 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
   const grainAbsorptionRate = stage.equipmentItem?.grain_absorption_rate
     ? stage.equipmentItem.grain_absorption_rate.value
     : 0;
-  const grainAbsorptionLoss = grainAbsorptionRate * grainWeight;
+  const grainAbsorptionUnit = stage.equipmentItem?.grain_absorption_rate?.unit ?? "l/kg";
+  const grainAbsorptionLossGallons = stage.equipmentItem?.grain_absorption_rate
+    ? specificVolumeToGallonsPerKilogram(stage.equipmentItem.grain_absorption_rate) * grainWeight
+    : 0;
 
   const boilRate = stage.equipmentItem?.boil_rate_per_hour
     ? volumeToGallons(stage.equipmentItem.boil_rate_per_hour)
@@ -129,6 +137,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                   <CardTitle className="text-base">{stage.label}</CardTitle>
                   <Button
                     onClick={handleStartEditName}
+                    disabled={readOnly}
                     size="sm"
                     variant="ghost"
                     className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
@@ -137,7 +146,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                   </Button>
                 </div>
                 <CardDescription className="text-xs">
-                  Total loss: {stage.totalLoss.toFixed(2)} gal
+                  Total loss: {gallonsToUnit(stage.totalLoss, volumeUnit).toFixed(2)} {volumeUnit}
                 </CardDescription>
               </>
             )}
@@ -154,7 +163,8 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                   Grain Absorption
                 </Label>
                 <span className="text-sm font-mono text-muted-foreground">
-                  {grainAbsorptionRate.toFixed(2)} l/kg = {grainAbsorptionLoss.toFixed(2)} gal
+                  {grainAbsorptionRate.toFixed(2)} {grainAbsorptionUnit} ={" "}
+                  {gallonsToUnit(grainAbsorptionLossGallons, volumeUnit).toFixed(2)} {volumeUnit}
                 </span>
               </div>
               <Slider
@@ -164,6 +174,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                 step={0.05}
                 value={[grainAbsorptionRate]}
                 onValueChange={([value]) => onGrainAbsorptionChange(stageIndex, value)}
+                disabled={readOnly}
                 className="w-full"
               />
             </div>
@@ -177,7 +188,8 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                   Boil Off Rate
                 </Label>
                 <span className="text-sm font-mono text-muted-foreground">
-                  {boilRate.toFixed(2)} gal/hr = {boilLoss.toFixed(2)} gal
+                  {gallonsToUnit(boilRate, volumeUnit).toFixed(2)} {volumeUnit}/hr ={" "}
+                  {gallonsToUnit(boilLoss, volumeUnit).toFixed(2)} {volumeUnit}
                 </span>
               </div>
               <Slider
@@ -187,6 +199,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                 step={0.1}
                 value={[boilRate]}
                 onValueChange={([value]) => onBoilRateChange(stageIndex, value)}
+                disabled={readOnly}
                 className="w-full"
               />
             </div>
@@ -199,7 +212,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                 {stage.lossLabel || "Loss"}
               </Label>
               <span className="text-sm font-mono text-muted-foreground">
-                {currentLossValue.toFixed(2)} gal
+                {gallonsToUnit(currentLossValue, volumeUnit).toFixed(2)} {volumeUnit}
               </span>
             </div>
             <Slider
@@ -209,6 +222,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
               step={0.05}
               value={[currentLossValue]}
               onValueChange={([value]) => onLossChange(stageIndex, value)}
+              disabled={readOnly}
               className="w-full"
             />
           </div>

@@ -2,11 +2,13 @@ import React from 'react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { DisplayVolumeUnit } from "@/lib/volume-units";
 
 interface BreweryBatchSettingsProps {
   targetVolume: number;
   boilTime: number;
   grainWeight: number;
+  volumeUnit: DisplayVolumeUnit;
   onTargetVolumeChange: (value: number) => void;
   onBoilTimeChange: (value: number) => void;
   onGrainWeightChange: (value: number) => void;
@@ -16,6 +18,7 @@ export const BreweryBatchSettings: React.FC<BreweryBatchSettingsProps> = ({
   targetVolume,
   boilTime,
   grainWeight,
+  volumeUnit,
   onTargetVolumeChange,
   onBoilTimeChange,
   onGrainWeightChange
@@ -40,7 +43,7 @@ export const BreweryBatchSettings: React.FC<BreweryBatchSettingsProps> = ({
                 min="0"
                 className="pr-12"
               />
-              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">gal</span>
+              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">{volumeUnit}</span>
             </div>
           </div>
           <div className="space-y-2">
