@@ -8,6 +8,7 @@ import { WasmBackend } from "@/lib/db/wasm-backend";
 import { setAppDb } from "@/lib/db/wasm-app-db";
 import { startSync } from "@/lib/sync";
 import "./index.css";
+import "./i18n";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";

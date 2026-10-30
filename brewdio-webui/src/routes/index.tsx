@@ -6,12 +6,15 @@ import { CreateRecipeDialog } from "@/components/create-recipe-dialog";
 import { DeleteRecipeDialog } from "@/components/delete-recipe-dialog";
 import { Calendar, Beaker } from "lucide-react";
 import { useCommandHandler } from "@/hooks/use-command";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
 });
 
 function HomeComponent() {
+  const { t } = useTranslation();
+
   const { data: recipes, status: recipesStatus } = useRecipes();
   const { data: batches, status: batchesStatus } = useBatches();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -41,7 +44,7 @@ function HomeComponent() {
       {/* Recipes Section */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Recipes</h1>
+          <h1 className="text-3xl font-bold">{t("recipes")}</h1>
           <CreateRecipeDialog />
         </div>
 

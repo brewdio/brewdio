@@ -9,28 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as BreweryRouteImport } from './routes/brewery'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as RecipesRecipeIdRouteImport } from './routes/recipes.$recipeId'
+import { Route as BreweryRouteImport } from './routes/brewery'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as BatchesBatchIdRouteImport } from './routes/batches.$batchId'
-import { Route as RecipesRecipeIdWaterRouteImport } from './routes/recipes.$recipeId_.water'
-import { Route as RecipesRecipeIdMashRouteImport } from './routes/recipes.$recipeId_.mash'
-import { Route as RecipesRecipeIdJsonRouteImport } from './routes/recipes.$recipeId_.json'
-import { Route as RecipesRecipeIdBatchesRouteImport } from './routes/recipes.$recipeId_.batches'
-import { Route as BatchesBatchIdWaterRouteImport } from './routes/batches.$batchId_.water'
-import { Route as BatchesBatchIdMashRouteImport } from './routes/batches.$batchId_.mash'
+import { Route as RecipesRecipeIdRouteImport } from './routes/recipes.$recipeId'
 import { Route as BatchesBatchIdJsonRouteImport } from './routes/batches.$batchId_.json'
+import { Route as BatchesBatchIdMashRouteImport } from './routes/batches.$batchId_.mash'
+import { Route as BatchesBatchIdWaterRouteImport } from './routes/batches.$batchId_.water'
+import { Route as RecipesRecipeIdBatchesRouteImport } from './routes/recipes.$recipeId_.batches'
+import { Route as RecipesRecipeIdJsonRouteImport } from './routes/recipes.$recipeId_.json'
+import { Route as RecipesRecipeIdMashRouteImport } from './routes/recipes.$recipeId_.mash'
+import { Route as RecipesRecipeIdWaterRouteImport } from './routes/recipes.$recipeId_.water'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BreweryRoute = BreweryRouteImport.update({
@@ -38,14 +33,14 @@ const BreweryRoute = BreweryRouteImport.update({
   path: '/brewery',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecipesRecipeIdRoute = RecipesRecipeIdRouteImport.update({
-  id: '/recipes/$recipeId',
-  path: '/recipes/$recipeId',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BatchesBatchIdRoute = BatchesBatchIdRouteImport.update({
@@ -53,29 +48,14 @@ const BatchesBatchIdRoute = BatchesBatchIdRouteImport.update({
   path: '/batches/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecipesRecipeIdWaterRoute = RecipesRecipeIdWaterRouteImport.update({
-  id: '/recipes/$recipeId_/water',
-  path: '/recipes/$recipeId/water',
+const RecipesRecipeIdRoute = RecipesRecipeIdRouteImport.update({
+  id: '/recipes/$recipeId',
+  path: '/recipes/$recipeId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecipesRecipeIdMashRoute = RecipesRecipeIdMashRouteImport.update({
-  id: '/recipes/$recipeId_/mash',
-  path: '/recipes/$recipeId/mash',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecipesRecipeIdJsonRoute = RecipesRecipeIdJsonRouteImport.update({
-  id: '/recipes/$recipeId_/json',
-  path: '/recipes/$recipeId/json',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecipesRecipeIdBatchesRoute = RecipesRecipeIdBatchesRouteImport.update({
-  id: '/recipes/$recipeId_/batches',
-  path: '/recipes/$recipeId/batches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BatchesBatchIdWaterRoute = BatchesBatchIdWaterRouteImport.update({
-  id: '/batches/$batchId_/water',
-  path: '/batches/$batchId/water',
+const BatchesBatchIdJsonRoute = BatchesBatchIdJsonRouteImport.update({
+  id: '/batches/$batchId_/json',
+  path: '/batches/$batchId/json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BatchesBatchIdMashRoute = BatchesBatchIdMashRouteImport.update({
@@ -83,9 +63,29 @@ const BatchesBatchIdMashRoute = BatchesBatchIdMashRouteImport.update({
   path: '/batches/$batchId/mash',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BatchesBatchIdJsonRoute = BatchesBatchIdJsonRouteImport.update({
-  id: '/batches/$batchId_/json',
-  path: '/batches/$batchId/json',
+const BatchesBatchIdWaterRoute = BatchesBatchIdWaterRouteImport.update({
+  id: '/batches/$batchId_/water',
+  path: '/batches/$batchId/water',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesRecipeIdBatchesRoute = RecipesRecipeIdBatchesRouteImport.update({
+  id: '/recipes/$recipeId_/batches',
+  path: '/recipes/$recipeId/batches',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesRecipeIdJsonRoute = RecipesRecipeIdJsonRouteImport.update({
+  id: '/recipes/$recipeId_/json',
+  path: '/recipes/$recipeId/json',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesRecipeIdMashRoute = RecipesRecipeIdMashRouteImport.update({
+  id: '/recipes/$recipeId_/mash',
+  path: '/recipes/$recipeId/mash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecipesRecipeIdWaterRoute = RecipesRecipeIdWaterRouteImport.update({
+  id: '/recipes/$recipeId_/water',
+  path: '/recipes/$recipeId/water',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -201,18 +201,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/brewery': {
@@ -222,18 +215,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BreweryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recipes/$recipeId': {
-      id: '/recipes/$recipeId'
-      path: '/recipes/$recipeId'
-      fullPath: '/recipes/$recipeId'
-      preLoaderRoute: typeof RecipesRecipeIdRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/batches/$batchId': {
@@ -243,39 +236,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BatchesBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recipes/$recipeId_/water': {
-      id: '/recipes/$recipeId_/water'
-      path: '/recipes/$recipeId/water'
-      fullPath: '/recipes/$recipeId/water'
-      preLoaderRoute: typeof RecipesRecipeIdWaterRouteImport
+    '/recipes/$recipeId': {
+      id: '/recipes/$recipeId'
+      path: '/recipes/$recipeId'
+      fullPath: '/recipes/$recipeId'
+      preLoaderRoute: typeof RecipesRecipeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recipes/$recipeId_/mash': {
-      id: '/recipes/$recipeId_/mash'
-      path: '/recipes/$recipeId/mash'
-      fullPath: '/recipes/$recipeId/mash'
-      preLoaderRoute: typeof RecipesRecipeIdMashRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recipes/$recipeId_/json': {
-      id: '/recipes/$recipeId_/json'
-      path: '/recipes/$recipeId/json'
-      fullPath: '/recipes/$recipeId/json'
-      preLoaderRoute: typeof RecipesRecipeIdJsonRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recipes/$recipeId_/batches': {
-      id: '/recipes/$recipeId_/batches'
-      path: '/recipes/$recipeId/batches'
-      fullPath: '/recipes/$recipeId/batches'
-      preLoaderRoute: typeof RecipesRecipeIdBatchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/batches/$batchId_/water': {
-      id: '/batches/$batchId_/water'
-      path: '/batches/$batchId/water'
-      fullPath: '/batches/$batchId/water'
-      preLoaderRoute: typeof BatchesBatchIdWaterRouteImport
+    '/batches/$batchId_/json': {
+      id: '/batches/$batchId_/json'
+      path: '/batches/$batchId/json'
+      fullPath: '/batches/$batchId/json'
+      preLoaderRoute: typeof BatchesBatchIdJsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/batches/$batchId_/mash': {
@@ -285,11 +257,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BatchesBatchIdMashRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/batches/$batchId_/json': {
-      id: '/batches/$batchId_/json'
-      path: '/batches/$batchId/json'
-      fullPath: '/batches/$batchId/json'
-      preLoaderRoute: typeof BatchesBatchIdJsonRouteImport
+    '/batches/$batchId_/water': {
+      id: '/batches/$batchId_/water'
+      path: '/batches/$batchId/water'
+      fullPath: '/batches/$batchId/water'
+      preLoaderRoute: typeof BatchesBatchIdWaterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$recipeId_/batches': {
+      id: '/recipes/$recipeId_/batches'
+      path: '/recipes/$recipeId/batches'
+      fullPath: '/recipes/$recipeId/batches'
+      preLoaderRoute: typeof RecipesRecipeIdBatchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$recipeId_/json': {
+      id: '/recipes/$recipeId_/json'
+      path: '/recipes/$recipeId/json'
+      fullPath: '/recipes/$recipeId/json'
+      preLoaderRoute: typeof RecipesRecipeIdJsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$recipeId_/mash': {
+      id: '/recipes/$recipeId_/mash'
+      path: '/recipes/$recipeId/mash'
+      fullPath: '/recipes/$recipeId/mash'
+      preLoaderRoute: typeof RecipesRecipeIdMashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recipes/$recipeId_/water': {
+      id: '/recipes/$recipeId_/water'
+      path: '/recipes/$recipeId/water'
+      fullPath: '/recipes/$recipeId/water'
+      preLoaderRoute: typeof RecipesRecipeIdWaterRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
