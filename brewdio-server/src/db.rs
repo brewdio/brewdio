@@ -160,23 +160,126 @@ pub fn upsert_admin(
     )
 }
 
+/// Claim all unowned data when the supplied user is the only registered user.
+/// This safely migrates data created before authentication was enabled without
+/// guessing ownership on a multi-user server.
+pub fn claim_unowned_data_if_only_user(
+    conn: &(impl Connection + ?Sized),
+    user_id: &str,
+) -> Result<bool, DbError> {
+    let user_count = conn
+        .query_one("SELECT COUNT(*) FROM user", &[], |row| {
+            row.get_text(0).parse::<usize>().unwrap_or(0)
+        })?
+        .unwrap_or(0);
+
+    if user_count != 1 {
+        return Ok(false);
+    }
+
+    claim_unowned_data(conn, user_id)?;
+    Ok(true)
+}
+
 /// Claim all unowned data (user_id IS NULL) for a given user.
-/// Called on first admin login to migrate pre-auth data.
 pub fn claim_unowned_data(
     conn: &(impl Connection + ?Sized),
     user_id: &str,
 ) -> Result<(), DbError> {
-    for table in &[
-        "recipe",
-        "batch",
-        "settings",
-        "equipment_profile",
-        "inventory_item",
-    ] {
-        conn.execute(
-            &format!("UPDATE {} SET user_id = ?1 WHERE user_id IS NULL", table),
-            &[Value::Text(user_id)],
-        )?;
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = (|| {
+        for table in &[
+            "recipe",
+            "batch",
+            "settings",
+            "equipment_profile",
+            "inventory_item",
+        ] {
+            conn.execute(
+                &format!("UPDATE {} SET user_id = ?1 WHERE user_id IS NULL", table),
+                &[Value::Text(user_id)],
+            )?;
+        }
+        Ok(())
+    })();
+
+    match result {
+        Ok(()) => conn.execute_batch("COMMIT;"),
+        Err(error) => {
+            let _ = conn.execute_batch("ROLLBACK;");
+            Err(error)
+        }
     }
-    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use brewdio_core::beerjson_types::RecipeType;
+    use brewdio_persistence::{connection_native, db as persistence_db};
+
+    fn sample_recipe() -> RecipeType {
+        serde_json::from_str(
+            r#"{
+                "name": "Ownership Test",
+                "type": "all grain",
+                "author": "Tester",
+                "batch_size": { "unit": "l", "value": 20.0 },
+                "efficiency": { "brewhouse": { "unit": "%", "value": 72.0 } },
+                "ingredients": { "fermentable_additions": [], "hop_additions": [] }
+            }"#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn only_user_claims_unowned_data() {
+        let conn = connection_native::open(":memory:").unwrap();
+        run_server_migrations(&conn).unwrap();
+        let recipe = persistence_db::create_recipe(
+            &conn,
+            "Ownership Test",
+            &sample_recipe(),
+            None,
+            None,
+        )
+        .unwrap();
+        create_user(&conn, "user-1", "one@example.com", None, None, "", false).unwrap();
+
+        assert!(claim_unowned_data_if_only_user(&conn, "user-1").unwrap());
+        let owner: String = conn
+            .query_row(
+                "SELECT user_id FROM recipe WHERE id = ?1",
+                rusqlite::params![recipe.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(owner, "user-1");
+    }
+
+    #[test]
+    fn multiple_users_do_not_claim_ambiguous_data() {
+        let conn = connection_native::open(":memory:").unwrap();
+        run_server_migrations(&conn).unwrap();
+        let recipe = persistence_db::create_recipe(
+            &conn,
+            "Ownership Test",
+            &sample_recipe(),
+            None,
+            None,
+        )
+        .unwrap();
+        create_user(&conn, "user-1", "one@example.com", None, None, "", false).unwrap();
+        create_user(&conn, "user-2", "two@example.com", None, None, "", false).unwrap();
+
+        assert!(!claim_unowned_data_if_only_user(&conn, "user-1").unwrap());
+        let owner: Option<String> = conn
+            .query_row(
+                "SELECT user_id FROM recipe WHERE id = ?1",
+                rusqlite::params![recipe.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(owner.is_none());
+    }
 }

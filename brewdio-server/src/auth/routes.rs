@@ -83,6 +83,9 @@ pub async fn register(
                 Json(serde_json::json!({ "error": "Failed to create user" })),
             );
         }
+        if let Err(e) = db::claim_unowned_data_if_only_user(&*c, &id) {
+            eprintln!("[auth] failed to claim unowned data for first user: {}", e);
+        }
     }
 
     let user = db::UserRow {
@@ -145,12 +148,10 @@ pub async fn login(
         }
     }
 
-    // On first admin login, claim unowned data
-    if user.is_admin {
-        let c = state.conn.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(e) = db::claim_unowned_data(&*c, &user.id) {
-            eprintln!("[auth] failed to claim unowned data: {}", e);
-        }
+    // A single-user server can safely assign data created before auth existed.
+    let c = state.conn.lock().unwrap_or_else(|e| e.into_inner());
+    if let Err(e) = db::claim_unowned_data_if_only_user(&*c, &user.id) {
+        eprintln!("[auth] failed to claim unowned data for only user: {}", e);
     }
 
     match encode_token(&user, &state.auth_config.jwt_secret) {
@@ -234,6 +235,11 @@ pub async fn google_login(
             }
         }
     };
+
+    let c = state.conn.lock().unwrap_or_else(|e| e.into_inner());
+    if let Err(e) = db::claim_unowned_data_if_only_user(&*c, &user.id) {
+        eprintln!("[auth] failed to claim unowned data for only user: {}", e);
+    }
 
     match encode_token(&user, &state.auth_config.jwt_secret) {
         Ok(token) => (StatusCode::OK, Json(serde_json::json!({ "token": token }))),
