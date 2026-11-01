@@ -48,6 +48,20 @@ const SERVER_MIGRATIONS: &[&str] = &[
     CREATE INDEX idx_api_token_user_id ON api_token(user_id);
     CREATE INDEX idx_api_token_prefix ON api_token(key_prefix);
     "#,
+    // SV3 → SV4: Idempotent batch creation for external integrations
+    r#"
+    CREATE TABLE integration_batch_start (
+        user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+        idempotency_key TEXT NOT NULL,
+        recipe_id TEXT NOT NULL,
+        batch_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (user_id, idempotency_key),
+        FOREIGN KEY (batch_id) REFERENCES batch(id)
+    );
+    CREATE INDEX idx_integration_batch_start_batch_id
+        ON integration_batch_start(batch_id);
+    "#,
 ];
 
 /// Run server-only migrations. Uses application_id pragma to track version

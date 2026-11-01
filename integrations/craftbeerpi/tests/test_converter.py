@@ -43,11 +43,13 @@ class ConversionTests(unittest.TestCase):
         result = convert_recipe(detail, "kettle", "sensor")
         self.assertEqual(result["basic"]["name"], "Brewdio – Testpils")
         self.assertEqual(result["basic"]["brewdio_recipe_id"], "01TEST")
-        self.assertEqual(result["steps"][0]["type"], "MashStep")
-        self.assertEqual(result["steps"][0]["props"]["Temp"], "68")
-        self.assertEqual(result["steps"][1]["type"], "BoilStep")
-        self.assertEqual(result["steps"][1]["props"]["Hop_1"], "60")
-        self.assertEqual(result["steps"][1]["props"]["Hop_1_text"], "Magnum – 8 g")
+        self.assertEqual(result["steps"][0]["type"], "BrewdioStartBatchStep")
+        self.assertEqual(result["steps"][0]["props"]["RecipeId"], "01TEST")
+        self.assertEqual(result["steps"][1]["type"], "MashStep")
+        self.assertEqual(result["steps"][1]["props"]["Temp"], "68")
+        self.assertEqual(result["steps"][2]["type"], "BoilStep")
+        self.assertEqual(result["steps"][2]["props"]["Hop_1"], "60")
+        self.assertEqual(result["steps"][2]["props"]["Hop_1_text"], "Magnum – 8 g")
 
     def test_accepts_camel_case_beerjson_fields(self):
         detail = {
@@ -66,9 +68,9 @@ class ConversionTests(unittest.TestCase):
             },
         }
         result = convert_recipe(detail, "k", "s")
-        self.assertEqual(result["steps"][0]["props"]["Timer"], "60")
-        self.assertEqual(result["steps"][0]["props"]["Temp"], "65")
         self.assertEqual(result["steps"][1]["props"]["Timer"], "60")
+        self.assertEqual(result["steps"][1]["props"]["Temp"], "65")
+        self.assertEqual(result["steps"][2]["props"]["Timer"], "60")
 
 
 if __name__ == "__main__":

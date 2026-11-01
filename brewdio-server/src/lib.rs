@@ -55,6 +55,10 @@ pub fn start_server(
         )
         .route("/api/v1/recipes", get(api::recipes::list_recipes))
         .route("/api/v1/recipes/{id}", get(api::recipes::get_recipe))
+        .route(
+            "/api/v1/recipes/{id}/batches",
+            post(api::batches::start_batch),
+        )
         .with_state(state)
         .layer(cors);
 

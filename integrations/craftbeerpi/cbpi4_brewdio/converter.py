@@ -136,7 +136,16 @@ def convert_recipe(detail: dict[str, Any], kettle_id: str, sensor_id: str) -> di
     name = str(_pick(recipe, "name", default=_pick(detail, "name", default="Oppskrift")))
     author = str(_pick(recipe, "author", default="Brewdio"))
 
-    steps = _mash_steps(recipe, kettle_id, sensor_id)
+    steps: list[dict[str, Any]] = []
+    if recipe_id:
+        steps.append(
+            {
+                "name": "Opprett Brewdio-brygg",
+                "type": "BrewdioStartBatchStep",
+                "props": {"RecipeId": recipe_id},
+            }
+        )
+    steps.extend(_mash_steps(recipe, kettle_id, sensor_id))
     boil = _boil_step(recipe, kettle_id, sensor_id)
     if boil is not None:
         steps.append(boil)

@@ -49,18 +49,22 @@ class BrewdioClient:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    async def _get(self, path: str) -> Any:
+    async def _request(self, method: str, path: str, json_body: Any = None) -> Any:
         timeout = aiohttp.ClientTimeout(total=15)
         headers = {"Authorization": f"Bearer {self.settings.api_key}"}
         async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-            async with session.get(f"{self.settings.base_url}{path}") as response:
-                if response.status != 200:
+            async with session.request(
+                method,
+                f"{self.settings.base_url}{path}",
+                json=json_body,
+            ) as response:
+                if response.status < 200 or response.status >= 300:
                     message = await response.text()
                     raise RuntimeError(f"Brewdio returned HTTP {response.status}: {message[:200]}")
                 return await response.json()
 
     async def recipes(self) -> list[dict[str, Any]]:
-        payload = await self._get("/api/v1/recipes")
+        payload = await self._request("GET", "/api/v1/recipes")
         recipes = payload.get("recipes", [])
         if not isinstance(recipes, list):
             raise RuntimeError("Brewdio returned an invalid recipe list")
@@ -70,9 +74,22 @@ class BrewdioClient:
         safe_id = re.sub(r"[^A-Za-z0-9_-]", "", recipe_id)
         if safe_id != recipe_id or not safe_id:
             raise ValueError("invalid Brewdio recipe id")
-        payload = await self._get(f"/api/v1/recipes/{safe_id}")
+        payload = await self._request("GET", f"/api/v1/recipes/{safe_id}")
         if not isinstance(payload, dict):
             raise RuntimeError("Brewdio returned an invalid recipe")
+        return payload
+
+    async def start_batch(self, recipe_id: str, idempotency_key: str) -> dict[str, Any]:
+        safe_id = re.sub(r"[^A-Za-z0-9_-]", "", recipe_id)
+        if safe_id != recipe_id or not safe_id:
+            raise ValueError("invalid Brewdio recipe id")
+        payload = await self._request(
+            "POST",
+            f"/api/v1/recipes/{safe_id}/batches",
+            {"idempotencyKey": idempotency_key},
+        )
+        if not isinstance(payload, dict) or not payload.get("batchId"):
+            raise RuntimeError("Brewdio returned an invalid batch response")
         return payload
 
 

@@ -332,39 +332,17 @@ pub fn create_batch_with_inventory(
     conn: &(impl Connection + ?Sized),
     name: &str,
     recipe_id: &str,
-    mut data: BatchData,
+    data: BatchData,
     plan: InventoryDeductionPlan,
 ) -> Result<BatchRow, DbError> {
     conn.execute_batch("BEGIN IMMEDIATE;")?;
-    let result = (|| {
-        let mut applied = Vec::new();
-        for request in &plan.deductions {
-            let mut item = crate::inventory::get_inventory_item(conn, &request.inventory_item_id)?
-                .ok_or_else(|| {
-                    DbError(format!(
-                        "Inventory item not found: {}",
-                        request.inventory_item_id
-                    ))
-                })?;
-            let before = item.quantity.clone();
-            let after = subtract_quantity(&before, &request.quantity)?;
-            item.quantity = after.clone();
-            item.updated_at = plan.updated_at.clone();
-            crate::inventory::update_inventory_item(conn, &item.id, &item)?;
-            applied.push(InventoryDeduction {
-                inventory_item_id: item.id.clone(),
-                ingredient_name: item.name().to_string(),
-                quantity: request.quantity.clone(),
-                before,
-                after,
-            });
-        }
-
-        data.inventory_deductions = applied;
-        data.inventory_shortages = plan.shortages;
-        let data_json = serde_json::to_string(&data).map_err(|e| DbError(e.to_string()))?;
-        create_batch(conn, name, recipe_id, &data_json)
-    })();
+    let result = create_batch_with_inventory_in_transaction(
+        conn,
+        name,
+        recipe_id,
+        data,
+        plan,
+    );
 
     match result {
         Ok(row) => {
@@ -376,6 +354,47 @@ pub fn create_batch_with_inventory(
             Err(error)
         }
     }
+}
+
+/// Create a batch and apply its inventory plan inside an existing transaction.
+///
+/// The caller is responsible for starting, committing, and rolling back the
+/// transaction. This is used when batch creation must be atomic with additional
+/// records such as an integration idempotency key.
+pub fn create_batch_with_inventory_in_transaction(
+    conn: &(impl Connection + ?Sized),
+    name: &str,
+    recipe_id: &str,
+    mut data: BatchData,
+    plan: InventoryDeductionPlan,
+) -> Result<BatchRow, DbError> {
+    let mut applied = Vec::new();
+    for request in &plan.deductions {
+        let mut item = crate::inventory::get_inventory_item(conn, &request.inventory_item_id)?
+            .ok_or_else(|| {
+                DbError(format!(
+                    "Inventory item not found: {}",
+                    request.inventory_item_id
+                ))
+            })?;
+        let before = item.quantity.clone();
+        let after = subtract_quantity(&before, &request.quantity)?;
+        item.quantity = after.clone();
+        item.updated_at = plan.updated_at.clone();
+        crate::inventory::update_inventory_item(conn, &item.id, &item)?;
+        applied.push(InventoryDeduction {
+            inventory_item_id: item.id.clone(),
+            ingredient_name: item.name().to_string(),
+            quantity: request.quantity.clone(),
+            before,
+            after,
+        });
+    }
+
+    data.inventory_deductions = applied;
+    data.inventory_shortages = plan.shortages;
+    let data_json = serde_json::to_string(&data).map_err(|e| DbError(e.to_string()))?;
+    create_batch(conn, name, recipe_id, &data_json)
 }
 
 pub fn get_batch_row(
