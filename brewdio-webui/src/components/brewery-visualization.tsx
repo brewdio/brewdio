@@ -110,7 +110,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
               onClick={() => onBeerColorChange(c)}
               className={`w-5 h-5 rounded-full border-2 transition-all ${beerColor === c ? 'border-white scale-110' : 'border-slate-600 hover:border-slate-400'}`}
               style={{ backgroundColor: c }}
-              title="Change beer color"
+              title={t("brewery.changeBeerColor")}
             />
           ))}
         </div>

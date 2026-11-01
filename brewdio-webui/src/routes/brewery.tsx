@@ -89,21 +89,70 @@ function getShapeFromForm(form: EquipmentItemType["form"]): TankShape {
 /**
  * Get the appropriate loss label for the static loss based on equipment form
  */
-function getLossLabel(item: EquipmentItemType): string {
-  // Labels for the static loss field
+function getLossLabelKey(item: EquipmentItemType): string {
   switch (item.form) {
     case "Mash Tun":
     case "Lauter Tun":
-      return "Dead Space / Other Loss";
+      return "brewery.lossLabels.deadSpaceOther";
     case "Brew Kettle":
-      return "Other Loss";
+      return "brewery.lossLabels.other";
     case "Fermenter":
     case "Aging Vessel":
-      return "Yeast/Cake Loss";
+      return "brewery.lossLabels.yeastCake";
     case "Packaging Vessel":
-      return "Transfer Loss";
+      return "brewery.lossLabels.transfer";
     default:
-      return "Loss";
+      return "brewery.lossLabels.loss";
+  }
+}
+
+function getEquipmentLabelKey(form: EquipmentItemType["form"]): string {
+  switch (form) {
+    case "HLT":
+      return "brewery.equipmentForms.hlt";
+    case "Mash Tun":
+      return "brewery.equipmentForms.mashTun";
+    case "Lauter Tun":
+      return "brewery.equipmentForms.lauterTun";
+    case "Brew Kettle":
+      return "brewery.equipmentForms.brewKettle";
+    case "Fermenter":
+      return "brewery.equipmentForms.fermenter";
+    case "Aging Vessel":
+      return "brewery.equipmentForms.agingVessel";
+    case "Packaging Vessel":
+      return "brewery.equipmentForms.packagingVessel";
+    default:
+      return "brewery.equipmentForms.other";
+  }
+}
+
+const standardEquipmentNames: Partial<
+  Record<EquipmentItemType["form"], string[]>
+> = {
+  HLT: ["HLT", "Hot Liquor Tank", "Varmtvannstank"],
+  "Mash Tun": ["Mash Tun", "Meskekar"],
+  "Lauter Tun": ["Lauter Tun", "Silkar"],
+  "Brew Kettle": ["Brew Kettle", "Boil Kettle", "Kokekjele"],
+  Fermenter: ["Fermenter", "Gjæringskar"],
+  "Aging Vessel": ["Aging Vessel", "Modningskar"],
+  "Packaging Vessel": ["Packaging", "Packaging Vessel", "Kegging", "Tapping"],
+};
+
+function hasStandardEquipmentName(item: EquipmentItemType): boolean {
+  return standardEquipmentNames[item.form]?.includes(item.name) ?? false;
+}
+
+function getBuiltInProfileNameKey(profileId: string): string | null {
+  switch (profileId) {
+    case "default-setup":
+      return "brewery.builtInProfiles.defaultSetup";
+    case "biab-no-sparge":
+      return "brewery.builtInProfiles.biabNoSparge";
+    case "biab-sparge":
+      return "brewery.builtInProfiles.biabSparge";
+    default:
+      return null;
   }
 }
 
@@ -199,12 +248,14 @@ function BreweryComponent() {
       const volIn = currentVol + stageLossTotal;
       processedStages.push({
         id: item.name.toLowerCase().replace(/\s+/g, "-"),
-        label: item.name,
+        label: isBuiltInProfile || hasStandardEquipmentName(item)
+          ? t(getEquipmentLabelKey(item.form))
+          : item.name,
         shape: getShapeFromForm(item.form),
         volumeIn: volIn,
         volumeOut: currentVol,
         totalLoss: stageLossTotal,
-        lossLabel: getLossLabel(item),
+        lossLabel: t(getLossLabelKey(item)),
         equipmentItem: item,
       });
       currentVol = volIn;
@@ -247,7 +298,7 @@ function BreweryComponent() {
       mashCapacity,
       stages: [sourceTank, ...orderedStages],
     };
-  }, [editedEquipment, currentEquipment, targetVolume, boilTime, grainWeight, t]);
+  }, [editedEquipment, currentEquipment, targetVolume, boilTime, grainWeight, isBuiltInProfile, t]);
 
   // Find selected stage and its index
   const selectedStageIndex = selectedStageId
@@ -422,9 +473,9 @@ function BreweryComponent() {
       {/* Header with Equipment Profile Selector and Save/Cancel */}
       <div className="flex items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold">Brewery</h1>
+          <h1 className="text-3xl font-bold">{t("brewery.title")}</h1>
           <p className="text-muted-foreground mt-2">
-            Configure your brewery equipment and visualize water losses.
+            {t("brewery.description")}
           </p>
         </div>
 
@@ -433,21 +484,26 @@ function BreweryComponent() {
           {hasChanges && !isBuiltInProfile && (
             <>
               <Button onClick={handleCancel} variant="outline">
-                Cancel
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleSave} disabled={isSavingProfile}>Save Changes</Button>
+              <Button onClick={handleSave} disabled={isSavingProfile}>
+                {t("brewery.saveChanges")}
+              </Button>
             </>
           )}
           <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
             <SelectTrigger className="w-[240px]">
-              <SelectValue placeholder="Select equipment profile" />
+              <SelectValue placeholder={t("brewery.selectProfile")} />
             </SelectTrigger>
             <SelectContent>
-              {equipmentProfiles?.map((profile) => (
-                <SelectItem key={profile.id} value={profile.id}>
-                  {profile.equipment.name}
-                </SelectItem>
-              ))}
+              {equipmentProfiles?.map((profile) => {
+                const profileNameKey = getBuiltInProfileNameKey(profile.id);
+                return (
+                  <SelectItem key={profile.id} value={profile.id}>
+                    {profileNameKey ? t(profileNameKey) : profile.equipment.name}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
 
@@ -455,22 +511,22 @@ function BreweryComponent() {
             <DialogTrigger asChild>
               <Button size="default" variant="outline">
                 <Plus className="h-4 w-4 mr-2" />
-                Add Profile
+                {t("brewery.addProfile")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Equipment Profile</DialogTitle>
+                <DialogTitle>{t("brewery.addProfileTitle")}</DialogTitle>
                 <DialogDescription>
-                  Create a new equipment profile to track different brewery setups.
+                  {t("brewery.addProfileDescription")}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="profile-name">Profile Name</Label>
+                  <Label htmlFor="profile-name">{t("brewery.profileName")}</Label>
                   <Input
                     id="profile-name"
-                    placeholder="e.g., 10 Gallon System"
+                    placeholder={t("brewery.profileNamePlaceholder")}
                     value={newProfileName}
                     onChange={(e) => setNewProfileName(e.target.value)}
                     onKeyDown={(e) => {
@@ -483,13 +539,13 @@ function BreweryComponent() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   onClick={handleAddProfile}
                   disabled={!newProfileName.trim() || isSavingProfile}
                 >
-                  Add Profile
+                  {t("brewery.addProfile")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -500,7 +556,7 @@ function BreweryComponent() {
               variant="destructive"
               size="icon"
               onClick={() => setIsDeleteDialogOpen(true)}
-              title="Delete profile"
+              title={t("brewery.deleteProfileTooltip")}
             >
               <Trash2 className="h-4 w-4" />
             </Button>

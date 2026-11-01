@@ -76,7 +76,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
       <Card>
         <CardContent className="py-12">
           <div className="text-center text-muted-foreground">
-            <p>Click on a stage in the visualization to view and adjust losses.</p>
+            <p>{t("brewery.selectStageHelp")}</p>
           </div>
         </CardContent>
       </Card>
@@ -153,7 +153,10 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
                   </Button>
                 </div>
                 <CardDescription className="text-xs">
-                  Total loss: {gallonsToUnit(stage.totalLoss, volumeUnit).toFixed(2)} {volumeUnit}
+                  {t("brewery.totalLoss", {
+                    value: gallonsToUnit(stage.totalLoss, volumeUnit).toFixed(2),
+                    unit: volumeUnit,
+                  })}
                 </CardDescription>
               </>
             )}
@@ -196,7 +199,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor={`grain-abs-${stage.id}`} className="text-sm">
-                  Grain Absorption
+                  {t("brewery.grainAbsorption")}
                 </Label>
                 <span className="text-sm font-mono text-muted-foreground">
                   {grainAbsorptionRate.toFixed(2)} {grainAbsorptionUnit} ={" "}
@@ -221,7 +224,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor={`boil-rate-${stage.id}`} className="text-sm">
-                  Boil Off Rate
+                  {t("brewery.boilOffRate")}
                 </Label>
                 <span className="text-sm font-mono text-muted-foreground">
                   {gallonsToUnit(boilRate, volumeUnit).toFixed(2)} {volumeUnit}/hr ={" "}
@@ -245,7 +248,7 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label htmlFor={`loss-${stage.id}`} className="text-sm">
-                {stage.lossLabel || "Loss"}
+                {stage.lossLabel || t("brewery.lossLabels.loss")}
               </Label>
               <span className="text-sm font-mono text-muted-foreground">
                 {gallonsToUnit(currentLossValue, volumeUnit).toFixed(2)} {volumeUnit}

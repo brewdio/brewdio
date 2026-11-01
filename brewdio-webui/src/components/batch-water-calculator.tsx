@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { WaterFlowVisualization } from './water-flow-visualization';
 import { calculateWater } from 'brewdio-wasm';
 import type { CalculatedWaterStage, WaterCalculatorResult, RecipeType, EquipmentType } from 'brewdio-wasm';
@@ -18,6 +19,7 @@ function unitsForRecipe(recipe: RecipeType) {
 }
 
 export function WaterCalculator({ recipe, equipment, beerColor = "#F59E0B" }: WaterCalculatorProps) {
+  const { t } = useTranslation();
   const units = useMemo(() => unitsForRecipe(recipe), [recipe.batch_size.unit]);
 
   const result = useMemo(() => {
@@ -35,43 +37,58 @@ export function WaterCalculator({ recipe, equipment, beerColor = "#F59E0B" }: Wa
   }, [recipe, equipment, units]);
 
   const volUnit = recipe.batch_size.unit;
-  const stages: CalculatedWaterStage[] = result.calculatedStages;
+  const stages: CalculatedWaterStage[] = result.calculatedStages.map((stage) => ({
+    ...stage,
+    label: t(`waterCalculator.stages.${stage.stageType}`),
+  }));
   const strikeWater = result.strikeWater;
   const spargeWater = result.spargeWater;
 
   return (
     <div className="border rounded-lg p-4">
       <div className="mb-4">
-        <h3 className="text-xl font-semibold mb-2">Water Requirements</h3>
+        <h3 className="text-xl font-semibold mb-2">{t("waterCalculator.title")}</h3>
         <div className="flex items-baseline gap-2">
           <span className="text-3xl font-bold text-blue-500">
             {result.totalWaterNeeded.value.toFixed(2)}
           </span>
           <span className="text-sm text-muted-foreground">
-            {result.totalWaterNeeded.unit} total strike water
+            {t("waterCalculator.totalWaterUnit", {
+              unit: result.totalWaterNeeded.unit,
+            })}
           </span>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Based on {recipe.batch_size.value} {recipe.batch_size.unit} batch size
-          and {recipe.boil?.boil_time?.value ?? 60} {recipe.boil?.boil_time?.unit ?? "min"} boil time
+          {t("waterCalculator.basedOn", {
+            batchSize: recipe.batch_size.value,
+            batchUnit: recipe.batch_size.unit,
+            boilTime: recipe.boil?.boil_time?.value ?? 60,
+            boilUnit: recipe.boil?.boil_time?.unit ?? "min",
+          })}
         </p>
       </div>
 
       {/* Strike & Sparge Info */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="bg-muted rounded-lg p-3">
-          <h4 className="text-sm font-semibold mb-1">Strike Water</h4>
+          <h4 className="text-sm font-semibold mb-1">{t("waterCalculator.strikeWater")}</h4>
           <div className="text-lg font-bold">{strikeWater.volume.value.toFixed(2)} {strikeWater.volume.unit}</div>
           <div className="text-xs text-muted-foreground">
-            Heat to {strikeWater.temperature.value.toFixed(1)}&deg;{strikeWater.temperature.unit}
+            {t("waterCalculator.heatTo", {
+              value: strikeWater.temperature.value.toFixed(1),
+              unit: strikeWater.temperature.unit,
+            })}
           </div>
         </div>
         {spargeWater && (
           <div className="bg-muted rounded-lg p-3">
-            <h4 className="text-sm font-semibold mb-1">Sparge Water</h4>
+            <h4 className="text-sm font-semibold mb-1">{t("waterCalculator.spargeWater")}</h4>
             <div className="text-lg font-bold">{spargeWater.volume.value.toFixed(2)} {spargeWater.volume.unit}</div>
             <div className="text-xs text-muted-foreground">
-              Heat to {spargeWater.temperature.value.toFixed(1)}&deg;{spargeWater.temperature.unit}
+              {t("waterCalculator.heatTo", {
+                value: spargeWater.temperature.value.toFixed(1),
+                unit: spargeWater.temperature.unit,
+              })}
             </div>
           </div>
         )}
@@ -92,15 +109,15 @@ export function WaterCalculator({ recipe, equipment, beerColor = "#F59E0B" }: Wa
               <h4 className="text-sm font-semibold mb-2">{stage.label}</h4>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Volume In:</span>
+                  <span className="text-muted-foreground">{t("waterCalculator.volumeIn")}</span>
                   <span className="font-mono">{stage.volumeIn.toFixed(2)} {volUnit}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Volume Out:</span>
+                  <span className="text-muted-foreground">{t("waterCalculator.volumeOut")}</span>
                   <span className="font-mono">{stage.volumeOut.toFixed(2)} {volUnit}</span>
                 </div>
                 <div className="flex justify-between text-red-500">
-                  <span>Loss:</span>
+                  <span>{t("waterCalculator.loss")}</span>
                   <span className="font-mono">-{stage.totalLoss.toFixed(2)} {volUnit}</span>
                 </div>
               </div>

@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { getMashProfiles } from "brewdio-wasm";
 import { useRecipeEdit } from "@/contexts/recipe-edit-context";
 import { Button } from "@/components/ui/button";
@@ -26,22 +28,45 @@ import { Pencil, Trash2, Plus, ArrowLeftRight } from "lucide-react";
 import type { MashStepType, TemperatureType } from "brewdio-wasm";
 
 const MASH_STEP_TYPES = [
-  { value: "infusion", label: "Infusion" },
-  { value: "temperature", label: "Temperature" },
-  { value: "decoction", label: "Decoction" },
-  { value: "souring mash", label: "Souring Mash" },
-  { value: "souring wort", label: "Souring Wort" },
-  { value: "drain mash tun", label: "Drain Mash Tun" },
-  { value: "sparge", label: "Sparge" },
+  { value: "infusion", labelKey: "mash.stepTypes.infusion" },
+  { value: "temperature", labelKey: "mash.stepTypes.temperature" },
+  { value: "decoction", labelKey: "mash.stepTypes.decoction" },
+  { value: "souring mash", labelKey: "mash.stepTypes.souringMash" },
+  { value: "souring wort", labelKey: "mash.stepTypes.souringWort" },
+  { value: "drain mash tun", labelKey: "mash.stepTypes.drainMashTun" },
+  { value: "sparge", labelKey: "mash.stepTypes.sparge" },
 ];
 
-function getStepTypeLabel(type: string): string {
-  return MASH_STEP_TYPES.find((t) => t.value === type)?.label ?? type;
+const STANDARD_MASH_TEXT_KEYS: Record<string, string> = {
+  "Single Infusion (F)": "mash.builtIn.singleInfusionF",
+  "Single Infusion (C)": "mash.builtIn.singleInfusionC",
+  "Enkel infusjon (F)": "mash.builtIn.singleInfusionF",
+  "Enkel infusjon (C)": "mash.builtIn.singleInfusionC",
+  "Standard single infusion mash for most beer styles": "mash.builtIn.standardNotes",
+  "Standard enkel infusjonsmesking for de fleste ølstiler": "mash.builtIn.standardNotes",
+  Saccharification: "mash.builtIn.saccharification",
+  Sukkerkonvertering: "mash.builtIn.saccharification",
+  "Mash Out": "mash.builtIn.mashOut",
+  Utmesking: "mash.builtIn.mashOut",
+  "Convert starches to fermentable sugars": "mash.builtIn.saccharificationDescription",
+  "Konverter stivelse til gjærbart sukker": "mash.builtIn.saccharificationDescription",
+  "Stop enzyme activity and improve lautering": "mash.builtIn.mashOutDescription",
+  "Stopp enzymaktiviteten og gjør silingen enklere": "mash.builtIn.mashOutDescription",
+};
+
+function translateStandardMashText(value: string, t: TFunction): string {
+  const key = STANDARD_MASH_TEXT_KEYS[value];
+  return key ? t(key) : value;
 }
 
-function newDefaultStep(): MashStepType {
+function getStepTypeLabel(type: string, t: TFunction): string {
+  const stepType = MASH_STEP_TYPES.find((item) => item.value === type);
+  return stepType ? t(stepType.labelKey) : type;
+}
+
+function newDefaultStep(name: string): MashStepType {
   return {
-    name: "New Step",
+    name,
     type: "infusion",
     step_temperature: { value: 152, unit: "F" },
     step_time: { value: 60, unit: "min" },
@@ -49,6 +74,7 @@ function newDefaultStep(): MashStepType {
 }
 
 export function RecipeMashSection() {
+  const { t } = useTranslation();
   const { update, document: recipe } = useRecipeEdit();
   const mashProfiles = useMemo(() => {
     const profiles = getMashProfiles();
@@ -65,9 +91,11 @@ export function RecipeMashSection() {
   // Step editing
   const [stepDialogOpen, setStepDialogOpen] = useState(false);
   const [editStepIndex, setEditStepIndex] = useState<number | null>(null);
-  const [stepForm, setStepForm] = useState<MashStepType>(newDefaultStep());
+  const [stepForm, setStepForm] = useState<MashStepType>(() =>
+    newDefaultStep(t("mash.newStep"))
+  );
 
-  if (!recipe) return <div>Loading mash data...</div>;
+  if (!recipe) return <div>{t("mash.loading")}</div>;
 
   const mash = recipe.recipe.mash;
 
@@ -107,14 +135,22 @@ export function RecipeMashSection() {
   // --- Step CRUD ---
   const handleOpenAddStep = () => {
     setEditStepIndex(null);
-    setStepForm(newDefaultStep());
+    setStepForm(newDefaultStep(t("mash.newStep")));
     setStepDialogOpen(true);
   };
 
   const handleOpenEditStep = (idx: number) => {
     if (!mash) return;
     setEditStepIndex(idx);
-    setStepForm(structuredClone(mash.mash_steps[idx]));
+    const localizedStep = structuredClone(mash.mash_steps[idx]);
+    localizedStep.name = translateStandardMashText(localizedStep.name, t);
+    if (localizedStep.description) {
+      localizedStep.description = translateStandardMashText(
+        localizedStep.description,
+        t
+      );
+    }
+    setStepForm(localizedStep);
     setStepDialogOpen(true);
   };
 
@@ -144,13 +180,13 @@ export function RecipeMashSection() {
   if (!mash) {
     return (
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Mash Procedure</h2>
+        <h2 className="text-xl font-semibold">{t("mash.title")}</h2>
         <p className="text-muted-foreground text-sm">
-          No mash procedure set for this recipe.
+          {t("mash.noProcedure")}
         </p>
         {mashProfiles.length > 0 && (
           <div className="space-y-2">
-            <Label>Select a mash profile to get started:</Label>
+            <Label>{t("mash.selectProfilePrompt")}</Label>
             <Select
               onValueChange={(profileId) => {
                 const profile = mashProfiles.find((p) => p.id === profileId);
@@ -162,12 +198,12 @@ export function RecipeMashSection() {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a mash profile..." />
+                <SelectValue placeholder={t("mash.chooseProfile")} />
               </SelectTrigger>
               <SelectContent>
                 {mashProfiles.map((profile) => (
                   <SelectItem key={profile.id} value={profile.id}>
-                    {profile.mashProfile.name}
+                    {translateStandardMashText(profile.mashProfile.name, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -182,7 +218,7 @@ export function RecipeMashSection() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Mash Procedure</h2>
+        <h2 className="text-xl font-semibold">{t("mash.title")}</h2>
         {mashProfiles.length > 0 && (
           <Button
             variant="outline"
@@ -190,7 +226,7 @@ export function RecipeMashSection() {
             onClick={() => setSwitchProfileOpen(true)}
           >
             <ArrowLeftRight className="h-4 w-4 mr-1" />
-            Switch Profile
+            {t("mash.switchProfile")}
           </Button>
         )}
       </div>
@@ -198,15 +234,15 @@ export function RecipeMashSection() {
       {/* Compact Mash Info */}
       <div className="space-y-1">
         <InlineField
-          label="Name"
-          value={mash.name}
+          label={t("mash.name")}
+          value={translateStandardMashText(mash.name, t)}
           isEditing={editingField === "name"}
           onEdit={() => setEditingField("name")}
           onSave={handleUpdateName}
           onCancel={() => setEditingField(null)}
         />
         <InlineTemperature
-          label="Grain Temp"
+          label={t("mash.grainTemperature")}
           value={mash.grain_temperature}
           isEditing={editingField === "grain_temp"}
           onEdit={() => setEditingField("grain_temp")}
@@ -214,8 +250,8 @@ export function RecipeMashSection() {
           onCancel={() => setEditingField(null)}
         />
         <InlineField
-          label="Notes"
-          value={mash.notes || ""}
+          label={t("mash.notes")}
+          value={mash.notes ? translateStandardMashText(mash.notes, t) : ""}
           optional
           multiline
           isEditing={editingField === "notes"}
@@ -229,15 +265,15 @@ export function RecipeMashSection() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Steps
+            {t("mash.steps")}
           </h4>
           <Button variant="outline" size="sm" onClick={handleOpenAddStep}>
             <Plus className="h-4 w-4 mr-1" />
-            Add Step
+            {t("mash.addStep")}
           </Button>
         </div>
         {mash.mash_steps.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No mash steps defined</p>
+          <p className="text-muted-foreground text-sm">{t("mash.noSteps")}</p>
         ) : (
           <div className="space-y-2">
             {mash.mash_steps.map((step, idx) => (
@@ -246,9 +282,11 @@ export function RecipeMashSection() {
                 className="flex justify-between items-center text-sm border-b pb-2 last:border-0"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{step.name}</span>
+                  <span className="font-medium">
+                    {translateStandardMashText(step.name, t)}
+                  </span>
                   <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                    {getStepTypeLabel(step.type)}
+                    {getStepTypeLabel(step.type, t)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -285,10 +323,9 @@ export function RecipeMashSection() {
       <Dialog open={switchProfileOpen} onOpenChange={setSwitchProfileOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Switch Mash Profile</DialogTitle>
+            <DialogTitle>{t("mash.switchProfileTitle")}</DialogTitle>
             <DialogDescription>
-              This will replace your current mash steps and settings with the
-              selected profile.
+              {t("mash.switchProfileDescription")}
             </DialogDescription>
           </DialogHeader>
           <Select
@@ -296,12 +333,12 @@ export function RecipeMashSection() {
             onValueChange={setSelectedProfileId}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Choose a mash profile..." />
+              <SelectValue placeholder={t("mash.chooseProfile")} />
             </SelectTrigger>
             <SelectContent>
               {mashProfiles.map((profile) => (
                 <SelectItem key={profile.id} value={profile.id}>
-                  {profile.mashProfile.name}
+                  {translateStandardMashText(profile.mashProfile.name, t)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -314,13 +351,13 @@ export function RecipeMashSection() {
                 setSelectedProfileId("");
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleConfirmSwitchProfile}
               disabled={!selectedProfileId}
             >
-              Confirm
+              {t("mash.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -358,6 +395,7 @@ function MashStepDialog({
   onSave,
   isNew,
 }: MashStepDialogProps) {
+  const { t } = useTranslation();
   const updateField = (field: string, value: any) => {
     onStepChange({ ...step, [field]: value });
   };
@@ -366,20 +404,22 @@ function MashStepDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isNew ? "Add Mash Step" : "Edit Mash Step"}</DialogTitle>
+          <DialogTitle>
+            {isNew ? t("mash.addStepTitle") : t("mash.editStepTitle")}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {/* Name + Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>{t("mash.name")}</Label>
               <Input
                 value={step.name}
                 onChange={(e) => updateField("name", e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label>Type</Label>
+              <Label>{t("mash.type")}</Label>
               <Select
                 value={step.type}
                 onValueChange={(val) => updateField("type", val)}
@@ -388,9 +428,9 @@ function MashStepDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MASH_STEP_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {MASH_STEP_TYPES.map((stepType) => (
+                    <SelectItem key={stepType.value} value={stepType.value}>
+                      {t(stepType.labelKey)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -401,7 +441,7 @@ function MashStepDialog({
           {/* Temperature + Duration */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <Label>Temperature</Label>
+              <Label>{t("mash.temperature")}</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -434,7 +474,7 @@ function MashStepDialog({
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Duration</Label>
+              <Label>{t("mash.duration")}</Label>
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -468,7 +508,9 @@ function MashStepDialog({
 
           {/* Ramp Time (optional) */}
           <div className="space-y-1">
-            <Label className="text-muted-foreground">Ramp Time (optional)</Label>
+            <Label className="text-muted-foreground">
+              {t("mash.rampTimeOptional")}
+            </Label>
             <div className="flex gap-2">
               <Input
                 type="number"
@@ -512,11 +554,11 @@ function MashStepDialog({
           {/* Description (optional) */}
           <div className="space-y-1">
             <Label className="text-muted-foreground">
-              Description (optional)
+              {t("mash.descriptionOptional")}
             </Label>
             <Textarea
               value={step.description ?? ""}
-              placeholder="Step description..."
+              placeholder={t("mash.stepDescriptionPlaceholder")}
               onChange={(e) =>
                 updateField("description", e.target.value || undefined)
               }
@@ -526,9 +568,11 @@ function MashStepDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
-          <Button onClick={onSave}>{isNew ? "Add Step" : "Save"}</Button>
+          <Button onClick={onSave}>
+            {isNew ? t("mash.addStep") : t("common.save")}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

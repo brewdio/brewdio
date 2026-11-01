@@ -5,12 +5,14 @@ import { useEffect } from "react";
 import { stores } from "@/lib/calculate";
 import { srmToSrgb, rgbToHex } from "brewdio-wasm";
 import { WaterCalculator } from "@/components/batch-water-calculator";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/recipes/$recipeId_/water")({
   component: RecipeWaterComponent,
 });
 
 function RecipeWaterComponent() {
+  const { t } = useTranslation();
   const { recipeId } = Route.useParams();
   const { data: recipe, status } = useRecipe(recipeId);
   const color = useCalculation<number>("color");
@@ -25,11 +27,11 @@ function RecipeWaterComponent() {
   }, [recipe]);
 
   if (status === "pending") {
-    return <div>Loading recipe...</div>;
+    return <div>{t("recipes.loadingOne")}</div>;
   }
 
   if (!recipe) {
-    return <div>Recipe not found</div>;
+    return <div>{t("recipes.notFound")}</div>;
   }
 
   const liquidColor = color
