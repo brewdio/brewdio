@@ -53,6 +53,8 @@ pub fn start_server(
             "/api/v1/integration-tokens/{id}",
             delete(api::tokens::revoke_token),
         )
+        .route("/api/v1/recipes", get(api::recipes::list_recipes))
+        .route("/api/v1/recipes/{id}", get(api::recipes::get_recipe))
         .with_state(state)
         .layer(cors);
 

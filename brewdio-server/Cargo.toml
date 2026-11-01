@@ -4,6 +4,7 @@ version = "0.8.0" # x-release-please-version
 edition = "2021"
 
 [dependencies]
+brewdio-core = { path = "../brewdio-core" }
 brewdio-persistence = { path = "../brewdio-persistence", features = ["native"] }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
@@ -16,6 +17,3 @@ bcrypt = "0.17"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tower-http = { version = "0.6", features = ["cors"] }
 ulid = "1"
-
-[dev-dependencies]
-brewdio-core = { path = "../brewdio-core" }
