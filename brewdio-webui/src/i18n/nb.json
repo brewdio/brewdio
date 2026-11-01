@@ -152,6 +152,29 @@
         "clientOutdated": "Ikke kompatibel – oppdater appen",
         "serverOutdated": "Ikke kompatibel – oppdater serveren"
       }
+    },
+    "integrations": {
+      "title": "Integrasjoner",
+      "description": "Opprett tilbakekallbare API-nøkler for pålitelige systemer som CraftBeerPi.",
+      "authenticationRequired": "Konfigurer synkroniseringsserveren og logg inn før du administrerer integrasjonsnøkler.",
+      "name": "Navn på nøkkel",
+      "create": "Opprett API-nøkkel",
+      "creating": "Oppretter...",
+      "createdTitle": "API-nøkkel opprettet",
+      "createdWarning": "Kopier nøkkelen nå. Av sikkerhetshensyn vises ikke hele nøkkelen igjen.",
+      "copy": "Kopier",
+      "copied": "Kopiert",
+      "activeKeys": "Aktive nøkler",
+      "noKeys": "Ingen integrasjonsnøkler er opprettet.",
+      "lastUsed": "Sist brukt: {{date}}",
+      "neverUsed": "Ikke brukt ennå",
+      "revoke": "Tilbakekall",
+      "revokeConfirmation": "Tilbakekalle API-nøkkelen {{name}}? CraftBeerPi mister tilgangen umiddelbart.",
+      "errors": {
+        "load": "Integrasjonsnøklene kunne ikke lastes.",
+        "create": "API-nøkkelen kunne ikke opprettes.",
+        "revoke": "API-nøkkelen kunne ikke tilbakekalles."
+      }
     }
   },
   "recipes": {

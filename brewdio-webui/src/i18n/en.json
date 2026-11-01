@@ -152,6 +152,29 @@
         "clientOutdated": "Incompatible - Update App",
         "serverOutdated": "Incompatible - Update Server"
       }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "Create revocable API keys for trusted systems such as CraftBeerPi.",
+      "authenticationRequired": "Configure the sync server and sign in before managing integration keys.",
+      "name": "Key name",
+      "create": "Create API key",
+      "creating": "Creating...",
+      "createdTitle": "API key created",
+      "createdWarning": "Copy this key now. For security, the full key will not be shown again.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "activeKeys": "Active keys",
+      "noKeys": "No integration keys have been created.",
+      "lastUsed": "Last used: {{date}}",
+      "neverUsed": "Not used yet",
+      "revoke": "Revoke",
+      "revokeConfirmation": "Revoke the API key {{name}}? CraftBeerPi will immediately lose access.",
+      "errors": {
+        "load": "The integration keys could not be loaded.",
+        "create": "The API key could not be created.",
+        "revoke": "The API key could not be revoked."
+      }
     }
   },
   "recipes": {

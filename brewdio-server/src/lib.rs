@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use axum::http::Method;
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tower_http::cors::{Any, CorsLayer};
 
+pub mod api;
 pub mod auth;
 pub mod db;
 mod user_db;
@@ -44,6 +45,14 @@ pub fn start_server(
         .route("/auth/register", post(auth::routes::register))
         .route("/auth/login", post(auth::routes::login))
         .route("/auth/google", post(auth::routes::google_login))
+        .route(
+            "/api/v1/integration-tokens",
+            get(api::tokens::list_tokens).post(api::tokens::create_token),
+        )
+        .route(
+            "/api/v1/integration-tokens/{id}",
+            delete(api::tokens::revoke_token),
+        )
         .with_state(state)
         .layer(cors);
 

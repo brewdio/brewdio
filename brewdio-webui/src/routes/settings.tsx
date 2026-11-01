@@ -17,6 +17,7 @@ import {
 import { startSync, stopSync, getSyncStatus, onSyncStatusChange } from "@/lib/sync";
 import { clearToken, getToken, isAuthenticated, parseToken } from "@/lib/auth";
 import { useTranslation } from "react-i18next";
+import { IntegrationTokens } from "@/components/integration-tokens";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsComponent,
@@ -222,6 +223,7 @@ function SettingsComponent() {
       </div>
 
       <SyncSection />
+      <IntegrationTokens />
     </div>
   );
 }
