@@ -19,6 +19,25 @@
     "inventory": "Inventory",
     "docs": "Docs"
   },
+  "auth": {
+    "loginDescription": "Sign in to connect to your sync server.",
+    "registerDescription": "Create an account on your sync server.",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "working": "Please wait...",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "hasAccount": "Already have an account?",
+    "errors": {
+      "loginFailed": "Sign-in failed. Check your email and password.",
+      "registerFailed": "The account could not be created. The email may already be registered.",
+      "connectionFailed": "Could not connect to the server. Check the server URL in Settings."
+    }
+  },
   "inventory": {
     "title": "Inventory",
     "description": "Track brewing ingredients, quantities, lots and storage locations.",
@@ -115,12 +134,21 @@
       "clientOutdatedMessage": "App version is incompatible with the sync server. Please refresh the page to load the latest version.",
       "refreshPage": "Refresh Page",
       "serverOutdatedMessage": "The sync server is running an older version. Please update the server to continue syncing.",
+      "authenticationRequiredMessage": "You must sign in or create an account before connecting to the sync server.",
+      "loginOrRegister": "Sign in / Create account",
+      "accountTitle": "Account",
+      "signedInAs": "Signed in as {{email}}",
+      "logout": "Sign out",
+      "connectionErrorMessage": "Could not connect to the sync server. Check the server URL and your network, then try again.",
       "connect": "Connect",
       "disconnect": "Disconnect",
       "status": {
         "connected": "Connected",
         "connecting": "Connecting",
         "disconnected": "Disconnected",
+        "offline": "Offline",
+        "authenticationRequired": "Sign-in required",
+        "connectionError": "Connection failed",
         "clientOutdated": "Incompatible - Update App",
         "serverOutdated": "Incompatible - Update Server"
       }

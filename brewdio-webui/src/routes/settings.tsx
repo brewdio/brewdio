@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSettings, saveSettingsImperative, DEFAULT_SETTINGS, type SettingsDocument } from "@/lib/db/settings";
 import { useQueryClient } from "@tanstack/react-query";
 import { settingsKeys } from "@/lib/db/settings";
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { startSync, stopSync, getSyncStatus, onSyncStatusChange } from "@/lib/sync";
+import { clearToken, getToken, isAuthenticated, parseToken } from "@/lib/auth";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/settings")({
@@ -231,6 +232,8 @@ const statusColors: Record<string, string> = {
   disconnected: "bg-gray-400",
   client_outdated: "bg-orange-500",
   server_outdated: "bg-orange-500",
+  authentication_required: "bg-orange-500",
+  connection_error: "bg-red-500",
 };
 
 const statusLabelKeys: Record<string, string> = {
@@ -239,14 +242,25 @@ const statusLabelKeys: Record<string, string> = {
   disconnected: "settings.sync.status.disconnected",
   client_outdated: "settings.sync.status.clientOutdated",
   server_outdated: "settings.sync.status.serverOutdated",
+  authentication_required: "settings.sync.status.authenticationRequired",
+  connection_error: "settings.sync.status.connectionError",
 };
 
 function isVersionMismatch(status: string) {
   return status === "client_outdated" || status === "server_outdated";
 }
 
+function canStartConnection(status: string) {
+  return status === "disconnected"
+    || status === "authentication_required"
+    || status === "connection_error"
+    || isVersionMismatch(status);
+}
+
 function SyncSection() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [, setAuthRevision] = useState(0);
   const [syncStatus, setSyncStatus] = useState(getSyncStatus);
   const [serverUrl, setServerUrl] = useState(
     () => localStorage.getItem("brewdio_server") ?? ""
@@ -256,10 +270,26 @@ function SyncSection() {
     return onSyncStatusChange(setSyncStatus);
   }, []);
 
+  const authenticated = isAuthenticated();
+  const token = getToken();
+  const account = token ? parseToken(token) : null;
+
   const handleConnect = () => {
     if (!serverUrl.trim()) return;
     localStorage.setItem("brewdio_server", serverUrl.trim());
     startSync(serverUrl.trim());
+  };
+
+  const handleLogin = () => {
+    if (!serverUrl.trim()) return;
+    localStorage.setItem("brewdio_server", serverUrl.trim());
+    navigate({ to: "/login" });
+  };
+
+  const handleLogout = async () => {
+    await stopSync();
+    clearToken();
+    setAuthRevision((revision) => revision + 1);
   };
 
   const handleDisconnect = () => {
@@ -283,9 +313,44 @@ function SyncSection() {
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
             placeholder="ws://192.168.1.100:8080/ws"
-            disabled={syncStatus !== "disconnected" && !isVersionMismatch(syncStatus)}
+            disabled={!canStartConnection(syncStatus)}
           />
         </div>
+
+        <div className="rounded-md border p-3 space-y-3">
+          <p className="text-sm font-medium">{t("settings.sync.accountTitle")}</p>
+          {authenticated && account ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {t("settings.sync.signedInAs", { email: account.email })}
+              </p>
+              <Button size="sm" variant="outline" onClick={handleLogout}>
+                {t("settings.sync.logout")}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t("settings.sync.authenticationRequiredMessage")}
+              </p>
+              <Button
+                size="sm"
+                onClick={handleLogin}
+                disabled={!serverUrl.trim()}
+              >
+                {t("settings.sync.loginOrRegister")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {syncStatus === "connection_error" && authenticated && (
+          <div className="rounded-md border border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800 p-3">
+            <p className="text-sm text-red-800 dark:text-red-300">
+              {t("settings.sync.connectionErrorMessage")}
+            </p>
+          </div>
+        )}
 
         {syncStatus === "client_outdated" && (
           <div className="rounded-md border border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-800 p-3 space-y-2">
@@ -311,9 +376,12 @@ function SyncSection() {
         )}
 
         <div className="flex items-center gap-3">
-          {syncStatus === "disconnected" || isVersionMismatch(syncStatus) ? (
+          {canStartConnection(syncStatus) ? (
             <>
-              <Button onClick={handleConnect} disabled={!serverUrl.trim()}>
+              <Button
+                onClick={handleConnect}
+                disabled={!serverUrl.trim() || !authenticated}
+              >
                 {t("settings.sync.connect")}
               </Button>
               {isVersionMismatch(syncStatus) && (

@@ -19,6 +19,25 @@
     "inventory": "Inventar",
     "docs": "Dokumentasjon"
   },
+  "auth": {
+    "loginDescription": "Logg inn for å koble til synkroniseringsserveren.",
+    "registerDescription": "Opprett en konto på synkroniseringsserveren.",
+    "email": "E-post",
+    "emailPlaceholder": "deg@eksempel.no",
+    "password": "Passord",
+    "passwordPlaceholder": "Minst 8 tegn",
+    "working": "Vent litt...",
+    "signIn": "Logg inn",
+    "createAccount": "Opprett konto",
+    "noAccount": "Har du ikke en konto?",
+    "signUp": "Opprett konto",
+    "hasAccount": "Har du allerede en konto?",
+    "errors": {
+      "loginFailed": "Innloggingen mislyktes. Kontroller e-postadressen og passordet.",
+      "registerFailed": "Kontoen kunne ikke opprettes. E-postadressen kan allerede være registrert.",
+      "connectionFailed": "Kunne ikke koble til serveren. Kontroller serveradressen i Innstillinger."
+    }
+  },
   "inventory": {
     "title": "Inventar",
     "description": "Hold oversikt over bryggeingredienser, mengder, partier og lagerplassering.",
@@ -115,12 +134,21 @@
       "clientOutdatedMessage": "Appversjonen er ikke kompatibel med synkroniseringsserveren. Oppdater siden for å laste inn den nyeste versjonen.",
       "refreshPage": "Oppdater siden",
       "serverOutdatedMessage": "Synkroniseringsserveren kjører en eldre versjon. Oppdater serveren for å fortsette synkroniseringen.",
+      "authenticationRequiredMessage": "Du må logge inn eller opprette en konto før du kan koble til synkroniseringsserveren.",
+      "loginOrRegister": "Logg inn / Opprett konto",
+      "accountTitle": "Konto",
+      "signedInAs": "Innlogget som {{email}}",
+      "logout": "Logg ut",
+      "connectionErrorMessage": "Kunne ikke koble til synkroniseringsserveren. Kontroller serveradressen og nettverket, og prøv igjen.",
       "connect": "Koble til",
       "disconnect": "Koble fra",
       "status": {
         "connected": "Tilkoblet",
         "connecting": "Kobler til",
         "disconnected": "Frakoblet",
+        "offline": "Frakoblet",
+        "authenticationRequired": "Innlogging kreves",
+        "connectionError": "Tilkoblingen mislyktes",
         "clientOutdated": "Ikke kompatibel – oppdater appen",
         "serverOutdated": "Ikke kompatibel – oppdater serveren"
       }
