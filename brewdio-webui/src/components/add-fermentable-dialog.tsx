@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useSettings } from "@/lib/db/settings";
 import { useRecipeEdit } from "@/contexts/recipe-edit-context";
@@ -25,6 +25,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getFermentables } from "brewdio-wasm";
 import { useTranslation } from "react-i18next";
+import { useInventoryItems } from "@/lib/db/inventory";
+import { buildIngredientCatalog, findCatalogKey } from "@/lib/inventory-catalog";
 
 interface AddFermentableDialogProps {
   existingFermentable?: FermentableAdditionType;
@@ -49,17 +51,23 @@ export function AddFermentableDialog({
   const setOpen = onOpenChange ?? setInternalOpen;
   const { update } = useRecipeEdit();
   const { data: settings } = useSettings();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const isEditing = existingFermentable !== undefined && index !== undefined;
+  const fermentableCatalog = useMemo(
+    () => buildIngredientCatalog(getFermentables(), inventoryItems, "fermentable"),
+    [inventoryItems]
+  );
 
   const form = useForm({
     defaultValues: {
-      fermentableName: existingFermentable?.name || "",
+      fermentableName: findCatalogKey(fermentableCatalog, existingFermentable?.name),
       amount: existingFermentable?.amount.value.toString() || "1.0",
       unit: (existingFermentable?.amount.unit || settings?.defaultMassUnit || "lb") as MassUnitType,
     },
     onSubmit: async ({ value }) => {
-      // Find the selected fermentable from the fermentables data
-      const selectedFermentable = getFermentables().find((f) => f.name === value.fermentableName);
+      const selectedFermentable = fermentableCatalog.find(
+        (entry) => entry.key === value.fermentableName
+      )?.ingredient;
 
       if (!selectedFermentable) {
         return;
@@ -100,6 +108,12 @@ export function AddFermentableDialog({
       setOpen(false);
     },
   });
+
+  useEffect(() => {
+    if (!existingFermentable) return;
+    const key = findCatalogKey(fermentableCatalog, existingFermentable.name);
+    if (key) form.setFieldValue("fermentableName", key);
+  }, [existingFermentable, fermentableCatalog, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -145,9 +159,13 @@ export function AddFermentableDialog({
               <div className="space-y-2">
                 <Label htmlFor={field.name}>{t("ingredients.fermentable.label")}</Label>
                 <Combobox
-                  options={getFermentables().map((f) => ({
-                    value: f.name,
-                    label: `${f.name} (${f.type})`,
+                  options={fermentableCatalog.map((entry) => ({
+                    value: entry.key,
+                    label: `${entry.ingredient.name} (${entry.ingredient.type})${
+                      entry.stock
+                        ? ` — ${t("ingredients.inStock", { stock: entry.stock })}`
+                        : ""
+                    }`,
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}

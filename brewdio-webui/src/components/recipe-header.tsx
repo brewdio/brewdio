@@ -190,6 +190,7 @@ export function RecipeHeader({
           <DeleteBatchDialog
             batchId={batch!.id}
             batchName={batch!.name}
+            inventoryDeductions={batch!.inventoryDeductions}
             variant="destructive"
             size="sm"
             redirectOnDelete={redirectOnDelete}

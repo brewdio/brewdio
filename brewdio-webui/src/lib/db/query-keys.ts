@@ -22,3 +22,8 @@ export const settingsKeys = {
 export const equipmentKeys = {
   all: ['equipment-profiles'] as const,
 };
+
+export const inventoryKeys = {
+  all: ['inventory-items'] as const,
+  detail: (id: string) => ['inventory-items', id] as const,
+};

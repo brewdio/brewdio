@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useSettings } from "@/lib/db/settings";
 import { useRecipeEdit } from "@/contexts/recipe-edit-context";
@@ -25,6 +25,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getHops } from "brewdio-wasm";
 import { useTranslation } from "react-i18next";
+import { useInventoryItems } from "@/lib/db/inventory";
+import { buildIngredientCatalog, findCatalogKey } from "@/lib/inventory-catalog";
 
 interface AddHopDialogProps {
   existingHop?: HopAdditionType;
@@ -49,11 +51,16 @@ export function AddHopDialog({
   const setOpen = onOpenChange ?? setInternalOpen;
   const { update } = useRecipeEdit();
   const { data: settings } = useSettings();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const isEditing = existingHop !== undefined && index !== undefined;
+  const hopCatalog = useMemo(
+    () => buildIngredientCatalog(getHops(), inventoryItems, "hop"),
+    [inventoryItems]
+  );
 
   const form = useForm({
     defaultValues: {
-      hopName: existingHop?.name || "",
+      hopName: findCatalogKey(hopCatalog, existingHop?.name),
       amount: existingHop?.amount.value.toString() || "1.0",
       unit: (existingHop?.amount.unit || settings?.defaultMassUnit || "oz") as MassUnitType,
       use: (existingHop?.timing?.use || "add_to_boil") as UseType,
@@ -61,8 +68,9 @@ export function AddHopDialog({
       duration: existingHop?.timing?.duration?.value.toString() || "",
     },
     onSubmit: async ({ value }) => {
-      // Find the selected hop from the hops data
-      const selectedHop = getHops().find((h) => h.name === value.hopName);
+      const selectedHop = hopCatalog.find(
+        (entry) => entry.key === value.hopName
+      )?.ingredient;
 
       if (!selectedHop) {
         return;
@@ -124,6 +132,12 @@ export function AddHopDialog({
     },
   });
 
+  useEffect(() => {
+    if (!existingHop) return;
+    const key = findCatalogKey(hopCatalog, existingHop.name);
+    if (key) form.setFieldValue("hopName", key);
+  }, [existingHop, form, hopCatalog]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {controlledOpen === undefined && (
@@ -166,9 +180,13 @@ export function AddHopDialog({
               <div className="space-y-2">
                 <Label htmlFor={field.name}>{t("ingredients.hop.variety")}</Label>
                 <Combobox
-                  options={getHops().map((h) => ({
-                    value: h.name,
-                    label: `${h.name} (${h.origin})`,
+                  options={hopCatalog.map((entry) => ({
+                    value: entry.key,
+                    label: `${entry.ingredient.name} (${entry.ingredient.origin ?? "—"})${
+                      entry.stock
+                        ? ` — ${t("ingredients.inStock", { stock: entry.stock })}`
+                        : ""
+                    }`,
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}

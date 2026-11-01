@@ -27,6 +27,11 @@ const SERVER_MIGRATIONS: &[&str] = &[
     CREATE INDEX idx_settings_user_id ON settings(user_id);
     CREATE INDEX idx_equipment_profile_user_id ON equipment_profile(user_id);
     "#,
+    // SV1 → SV2: Associate inventory items with users
+    r#"
+    ALTER TABLE inventory_item ADD COLUMN user_id TEXT REFERENCES user(id);
+    CREATE INDEX idx_inventory_item_user_id ON inventory_item(user_id);
+    "#,
 ];
 
 /// Run server-only migrations. Uses application_id pragma to track version
@@ -161,7 +166,13 @@ pub fn claim_unowned_data(
     conn: &(impl Connection + ?Sized),
     user_id: &str,
 ) -> Result<(), DbError> {
-    for table in &["recipe", "batch", "settings", "equipment_profile"] {
+    for table in &[
+        "recipe",
+        "batch",
+        "settings",
+        "equipment_profile",
+        "inventory_item",
+    ] {
         conn.execute(
             &format!("UPDATE {} SET user_id = ?1 WHERE user_id IS NULL", table),
             &[Value::Text(user_id)],

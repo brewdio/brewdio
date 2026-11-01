@@ -109,20 +109,23 @@ pub async fn run_sync(
     let local_batch_ids = db::list_all_doc_ids(conn, DocType::Batch)?;
     let local_settings_ids = db::list_all_doc_ids(conn, DocType::Settings)?;
     let local_equipment_profile_ids = db::list_all_doc_ids(conn, DocType::EquipmentProfile)?;
+    let local_inventory_item_ids = db::list_all_doc_ids(conn, DocType::InventoryItem)?;
 
     let hello = SyncMessage::Hello {
         recipe_ids: local_recipe_ids.clone(),
         batch_ids: local_batch_ids.clone(),
         settings_ids: local_settings_ids.clone(),
         equipment_profile_ids: local_equipment_profile_ids.clone(),
+        inventory_item_ids: local_inventory_item_ids.clone(),
         schema_version: SCHEMA_VERSION,
     };
     log::debug!(
-        "[sync] sending Hello (recipes={}, batches={}, settings={}, equipment={})",
+        "[sync] sending Hello (recipes={}, batches={}, settings={}, equipment={}, inventory={})",
         local_recipe_ids.len(),
         local_batch_ids.len(),
         local_settings_ids.len(),
         local_equipment_profile_ids.len(),
+        local_inventory_item_ids.len(),
     );
     ws_tx
         .send(Message::Text(serde_json::to_string(&hello)?.into()))
@@ -141,7 +144,7 @@ pub async fn run_sync(
         }
     };
 
-    let (server_recipe_ids, server_batch_ids, server_settings_ids, server_equipment_profile_ids) =
+    let (server_recipe_ids, server_batch_ids, server_settings_ids, server_equipment_profile_ids, server_inventory_item_ids) =
         match server_hello {
             SyncMessage::Reject {
                 reason,
@@ -166,6 +169,7 @@ pub async fn run_sync(
                 batch_ids,
                 settings_ids,
                 equipment_profile_ids,
+                inventory_item_ids,
                 schema_version,
             } => {
                 if schema_version != SCHEMA_VERSION {
@@ -187,6 +191,7 @@ pub async fn run_sync(
                     batch_ids.into_iter().collect::<HashSet<_>>(),
                     settings_ids.into_iter().collect::<HashSet<_>>(),
                     equipment_profile_ids.into_iter().collect::<HashSet<_>>(),
+                    inventory_item_ids.into_iter().collect::<HashSet<_>>(),
                 )
             }
             _ => return Err(SyncError::Protocol("Expected Hello from server".into())),
@@ -197,7 +202,7 @@ pub async fn run_sync(
     on_status(SyncStatus::Connected);
 
     // Send NewDoc for docs only we have
-    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 4] = [
+    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 5] = [
         (
             DocType::Recipe,
             local_recipe_ids.into_iter().collect(),
@@ -217,6 +222,11 @@ pub async fn run_sync(
             DocType::EquipmentProfile,
             local_equipment_profile_ids.into_iter().collect(),
             &server_equipment_profile_ids,
+        ),
+        (
+            DocType::InventoryItem,
+            local_inventory_item_ids.into_iter().collect(),
+            &server_inventory_item_ids,
         ),
     ];
 

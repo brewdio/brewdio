@@ -12,6 +12,7 @@ import {
   Droplets,
   BookOpen,
   Search,
+  Boxes,
 } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useBatches } from "@/lib/db/batches";
@@ -49,6 +50,11 @@ const staticNavItems = [
     titleKey: "navigation.brewery",
     url: "/brewery",
     icon: Beaker,
+  },
+  {
+    titleKey: "navigation.inventory",
+    url: "/inventory",
+    icon: Boxes,
   },
   {
     titleKey: "common.settings",

@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { DataBackend } from './backend';
-import { recipeKeys, batchKeys, settingsKeys, equipmentKeys } from './query-keys';
+import { recipeKeys, batchKeys, settingsKeys, equipmentKeys, inventoryKeys } from './query-keys';
 
 // ---------------------------------------------------------------------------
 // Singleton DataBackend instance
@@ -25,7 +25,7 @@ export function getBackend(): DataBackend {
 const CHANNEL_NAME = 'brewdio-db-changes';
 let channel: BroadcastChannel | null = null;
 
-type ChangeKind = typeof recipeKeys.all[0] | typeof batchKeys.all[0] | typeof settingsKeys.all[0] | typeof equipmentKeys.all[0];
+type ChangeKind = typeof recipeKeys.all[0] | typeof batchKeys.all[0] | typeof settingsKeys.all[0] | typeof equipmentKeys.all[0] | typeof inventoryKeys.all[0];
 
 function getBroadcastChannel(): BroadcastChannel | null {
   if (channel) return channel;
@@ -63,6 +63,10 @@ export function registerChangeCallback(queryClient: QueryClient) {
   b.onEquipmentChange(() => {
     queryClient.invalidateQueries({ queryKey: equipmentKeys.all });
     postChange('equipment-profiles');
+  });
+  b.onInventoryChange(() => {
+    queryClient.invalidateQueries({ queryKey: inventoryKeys.all });
+    postChange('inventory-items');
   });
 
   // Listen for changes from other tabs

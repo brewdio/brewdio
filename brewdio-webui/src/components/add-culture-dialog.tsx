@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRecipeEdit } from "@/contexts/recipe-edit-context";
 import type { CultureAdditionType, UnitUnitType } from "brewdio-wasm";
@@ -24,6 +24,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getCultures } from "brewdio-wasm";
 import { useTranslation } from "react-i18next";
+import { useInventoryItems } from "@/lib/db/inventory";
+import { buildIngredientCatalog, findCatalogKey } from "@/lib/inventory-catalog";
 
 interface AddCultureDialogProps {
   existingCulture?: CultureAdditionType;
@@ -47,17 +49,23 @@ export function AddCultureDialog({
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const { update } = useRecipeEdit();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const isEditing = existingCulture !== undefined && index !== undefined;
+  const cultureCatalog = useMemo(
+    () => buildIngredientCatalog(getCultures(), inventoryItems, "culture"),
+    [inventoryItems]
+  );
 
   const form = useForm({
     defaultValues: {
-      cultureName: existingCulture?.name || "",
+      cultureName: findCatalogKey(cultureCatalog, existingCulture?.name),
       amount: existingCulture?.amount?.value.toString() || "1",
       unit: (existingCulture?.amount?.unit || "pkg") as UnitUnitType,
     },
     onSubmit: async ({ value }) => {
-      // Find the selected culture from the cultures data
-      const selectedCulture = getCultures().find((c) => c.name === value.cultureName);
+      const selectedCulture = cultureCatalog.find(
+        (entry) => entry.key === value.cultureName
+      )?.ingredient;
 
       if (!selectedCulture) {
         return;
@@ -98,6 +106,12 @@ export function AddCultureDialog({
       setOpen(false);
     },
   });
+
+  useEffect(() => {
+    if (!existingCulture) return;
+    const key = findCatalogKey(cultureCatalog, existingCulture.name);
+    if (key) form.setFieldValue("cultureName", key);
+  }, [cultureCatalog, existingCulture, form]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -143,9 +157,13 @@ export function AddCultureDialog({
               <div className="space-y-2">
                 <Label htmlFor={field.name}>{t("ingredients.culture.label")}</Label>
                 <Combobox
-                  options={getCultures().map((c) => ({
-                    value: c.name,
-                    label: `${c.name} (${c.type})`,
+                  options={cultureCatalog.map((entry) => ({
+                    value: entry.key,
+                    label: `${entry.ingredient.name} (${entry.ingredient.type})${
+                      entry.stock
+                        ? ` — ${t("ingredients.inStock", { stock: entry.stock })}`
+                        : ""
+                    }`,
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}

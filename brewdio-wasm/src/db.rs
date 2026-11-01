@@ -1,10 +1,12 @@
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use brewdio_core::beerjson_types::{EquipmentType, RecipeType};
+use brewdio_core::inventory::InventoryItem;
 use brewdio_persistence::connection_wasm::WasmConnection;
 use brewdio_persistence::db;
 use brewdio_persistence::batch;
 use brewdio_persistence::equipment_profile;
+use brewdio_persistence::inventory;
 use brewdio_persistence::settings;
 
 /// Install the IndexedDB-backed persistent VFS.
@@ -23,6 +25,7 @@ pub struct AppDb {
     pub(crate) on_batches_change: Option<js_sys::Function>,
     pub(crate) on_settings_change: Option<js_sys::Function>,
     pub(crate) on_equipment_change: Option<js_sys::Function>,
+    pub(crate) on_inventory_change: Option<js_sys::Function>,
 }
 
 #[wasm_bindgen(js_class = "AppDb")]
@@ -30,12 +33,12 @@ impl AppDb {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Result<AppDb, JsError> {
         let conn = WasmConnection::open_memory().map_err(|e| JsError::new(&e.to_string()))?;
-        Ok(AppDb { conn: Arc::new(conn), on_recipes_change: None, on_batches_change: None, on_settings_change: None, on_equipment_change: None })
+        Ok(AppDb { conn: Arc::new(conn), on_recipes_change: None, on_batches_change: None, on_settings_change: None, on_equipment_change: None, on_inventory_change: None })
     }
 
     pub fn open(path: &str) -> Result<AppDb, JsError> {
         let conn = WasmConnection::open(path).map_err(|e| JsError::new(&e.to_string()))?;
-        Ok(AppDb { conn: Arc::new(conn), on_recipes_change: None, on_batches_change: None, on_settings_change: None, on_equipment_change: None })
+        Ok(AppDb { conn: Arc::new(conn), on_recipes_change: None, on_batches_change: None, on_settings_change: None, on_equipment_change: None, on_inventory_change: None })
     }
 
     pub(crate) fn conn_arc(&self) -> &Arc<WasmConnection> {
@@ -62,6 +65,11 @@ impl AppDb {
         self.on_equipment_change = Some(callback);
     }
 
+    #[wasm_bindgen(js_name = "onInventoryChange")]
+    pub fn on_inventory_change(&mut self, callback: js_sys::Function) {
+        self.on_inventory_change = Some(callback);
+    }
+
     pub(crate) fn notify(&self) {
         if let Some(ref cb) = self.on_recipes_change {
             let _ = cb.call0(&JsValue::NULL);
@@ -76,6 +84,12 @@ impl AppDb {
 
     pub(crate) fn notify_settings(&self) {
         if let Some(ref cb) = self.on_settings_change {
+            let _ = cb.call0(&JsValue::NULL);
+        }
+    }
+
+    pub(crate) fn notify_inventory(&self) {
+        if let Some(ref cb) = self.on_inventory_change {
             let _ = cb.call0(&JsValue::NULL);
         }
     }
@@ -134,13 +148,27 @@ impl AppDb {
     // --- Batch operations (now using typed Batch from persistence) ---
 
     #[wasm_bindgen(js_name = "createBatch")]
-    pub fn create_batch(&self, name: &str, recipe_id: &str, data: JsValue) -> Result<String, JsError> {
+    pub fn create_batch(&self, name: &str, recipe_id: &str, data: JsValue, inventory_plan: JsValue) -> Result<String, JsError> {
         let data: serde_json::Value = serde_wasm_bindgen::from_value(data)
             .map_err(|e| JsError::new(&e.to_string()))?;
-        let data_json = serde_json::to_string(&data).unwrap();
-        let row = batch::create_batch(&*self.conn, name, recipe_id, &data_json)
+        let data: batch::BatchData = serde_json::from_value(data)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        let inventory_plan: batch::InventoryDeductionPlan =
+            serde_wasm_bindgen::from_value(inventory_plan)
+                .map_err(|e| JsError::new(&e.to_string()))?;
+        let has_inventory_changes = !inventory_plan.deductions.is_empty();
+        let row = batch::create_batch_with_inventory(
+            &*self.conn,
+            name,
+            recipe_id,
+            data,
+            inventory_plan,
+        )
             .map_err(|e| JsError::new(&e.to_string()))?;
         self.notify_batches();
+        if has_inventory_changes {
+            self.notify_inventory();
+        }
         Ok(row.id)
     }
 
@@ -173,10 +201,17 @@ impl AppDb {
     }
 
     #[wasm_bindgen(js_name = "deleteBatch")]
-    pub fn delete_batch(&self, id: &str) -> Result<(), JsError> {
-        batch::delete_batch(&*self.conn, id)
-            .map_err(|e| JsError::new(&e.to_string()))?;
+    pub fn delete_batch(&self, id: &str, updated_at: &str) -> Result<(), JsError> {
+        let restored_inventory = batch::delete_batch_with_inventory(
+            &*self.conn,
+            id,
+            updated_at,
+        )
+        .map_err(|e| JsError::new(&e.to_string()))?;
         self.notify_batches();
+        if restored_inventory {
+            self.notify_inventory();
+        }
         Ok(())
     }
 
@@ -227,5 +262,48 @@ impl AppDb {
     pub fn delete_equipment_profile(&self, id: &str) -> Result<(), JsError> {
         equipment_profile::delete_equipment_profile(&*self.conn, id)
             .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    // --- Inventory operations ---
+
+    #[wasm_bindgen(js_name = "listInventoryItems")]
+    pub fn list_inventory_items(&self) -> Result<JsValue, JsError> {
+        let items = inventory::list_inventory_items(&*self.conn)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        crate::to_js(&items).map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = "getInventoryItem")]
+    pub fn get_inventory_item(&self, id: &str) -> Result<JsValue, JsError> {
+        let item = inventory::get_inventory_item(&*self.conn, id)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        match item {
+            Some(item) => crate::to_js(&item).map_err(|e| JsError::new(&e.to_string())),
+            None => Ok(JsValue::NULL),
+        }
+    }
+
+    #[wasm_bindgen(js_name = "createInventoryItem")]
+    pub fn create_inventory_item(&self, item: InventoryItem) -> Result<String, JsError> {
+        let row = inventory::create_inventory_item(&*self.conn, &item)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        self.notify_inventory();
+        Ok(row.id)
+    }
+
+    #[wasm_bindgen(js_name = "updateInventoryItem")]
+    pub fn update_inventory_item(&self, id: &str, item: InventoryItem) -> Result<(), JsError> {
+        inventory::update_inventory_item(&*self.conn, id, &item)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        self.notify_inventory();
+        Ok(())
+    }
+
+    #[wasm_bindgen(js_name = "deleteInventoryItem")]
+    pub fn delete_inventory_item(&self, id: &str) -> Result<(), JsError> {
+        inventory::delete_inventory_item(&*self.conn, id)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        self.notify_inventory();
+        Ok(())
     }
 }

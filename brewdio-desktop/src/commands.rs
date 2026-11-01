@@ -2,10 +2,12 @@ use std::sync::{Arc, Mutex};
 
 use brewdio_core::beerjson_types::{EquipmentType, RecipeType};
 use brewdio_core::equipment_profile::EquipmentProfile;
+use brewdio_core::inventory::InventoryItem;
 use brewdio_persistence::{
     batch::{self, Batch},
     db,
     equipment_profile,
+    inventory,
     protocol::DocType,
     recipe::Recipe,
     settings::{self, SettingsDocument},
@@ -125,12 +127,23 @@ pub fn create_batch(
     name: String,
     recipe_id: String,
     data: serde_json::Value,
+    inventory_plan: batch::InventoryDeductionPlan,
 ) -> Result<String, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    let data_str = serde_json::to_string(&data).map_err(map_err)?;
-    let row = brewdio_persistence::batch::create_batch(&*conn, &name, &recipe_id, &data_str)
-        .map_err(map_err)?;
+    let data: batch::BatchData = serde_json::from_value(data).map_err(map_err)?;
+    let has_inventory_changes = !inventory_plan.deductions.is_empty();
+    let row = brewdio_persistence::batch::create_batch_with_inventory(
+        &*conn,
+        &name,
+        &recipe_id,
+        data,
+        inventory_plan,
+    )
+    .map_err(map_err)?;
     let _ = app.emit("db-change", "batch");
+    if has_inventory_changes {
+        let _ = app.emit("db-change", "inventory");
+    }
     Ok(row.id)
 }
 
@@ -154,10 +167,19 @@ pub fn delete_batch(
     state: State<AppState>,
     app: AppHandle,
     id: String,
+    updated_at: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    brewdio_persistence::batch::delete_batch(&*conn, &id).map_err(map_err)?;
+    let restored_inventory = brewdio_persistence::batch::delete_batch_with_inventory(
+        &*conn,
+        &id,
+        &updated_at,
+    )
+    .map_err(map_err)?;
     let _ = app.emit("db-change", "batch");
+    if restored_inventory {
+        let _ = app.emit("db-change", "inventory");
+    }
     Ok(())
 }
 
@@ -234,6 +256,62 @@ pub fn delete_equipment_profile(
 }
 
 // ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_inventory_items(state: State<AppState>) -> Result<Vec<InventoryItem>, String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    inventory::list_inventory_items(&*conn).map_err(map_err)
+}
+
+#[tauri::command]
+pub fn get_inventory_item(
+    state: State<AppState>,
+    id: String,
+) -> Result<Option<InventoryItem>, String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    inventory::get_inventory_item(&*conn, &id).map_err(map_err)
+}
+
+#[tauri::command]
+pub fn create_inventory_item(
+    state: State<AppState>,
+    app: AppHandle,
+    item: InventoryItem,
+) -> Result<String, String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    let row = inventory::create_inventory_item(&*conn, &item).map_err(map_err)?;
+    let _ = app.emit("db-change", "inventory");
+    Ok(row.id)
+}
+
+#[tauri::command]
+pub fn update_inventory_item(
+    state: State<AppState>,
+    app: AppHandle,
+    id: String,
+    item: InventoryItem,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    inventory::update_inventory_item(&*conn, &id, &item).map_err(map_err)?;
+    let _ = app.emit("db-change", "inventory");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_inventory_item(
+    state: State<AppState>,
+    app: AppHandle,
+    id: String,
+) -> Result<(), String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    inventory::delete_inventory_item(&*conn, &id).map_err(map_err)?;
+    let _ = app.emit("db-change", "inventory");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Sync
 // ---------------------------------------------------------------------------
 
@@ -282,6 +360,7 @@ pub async fn start_sync(
                         DocType::Batch => "batch",
                         DocType::Settings => "settings",
                         DocType::EquipmentProfile => "equipment",
+                        DocType::InventoryItem => "inventory",
                     };
                     let _ = app_handle.emit("db-change", type_str);
                 },

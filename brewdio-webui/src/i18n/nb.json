@@ -16,7 +16,62 @@
     "title": "Navigasjon",
     "home": "Hjem",
     "brewery": "Bryggeri",
+    "inventory": "Inventar",
     "docs": "Dokumentasjon"
+  },
+  "inventory": {
+    "title": "Inventar",
+    "description": "Hold oversikt over bryggeingredienser, mengder, partier og lagerplassering.",
+    "categoriesLabel": "Ingredienskategorier",
+    "categories": {
+      "fermentable": "Malt",
+      "hop": "Humle",
+      "culture": "Gjær"
+    },
+    "add": "Legg til lagerpost",
+    "edit": "Rediger lagerpost",
+    "addTitle": "Legg til lagerpost",
+    "editTitle": "Rediger lagerpost",
+    "dialogDescription": "Velg en ingrediens og angi hva du har på lager nå.",
+    "useBuiltIn": "Velg ingrediens",
+    "createCustom": "Opprett egen ingrediens",
+    "ingredient": "Ingrediens",
+    "selectIngredient": "Velg en ingrediens",
+    "searchIngredients": "Søk etter ingredienser...",
+    "noIngredientFound": "Fant ingen ingrediens.",
+    "searchPlaceholder": "Søk i inventaret...",
+    "loading": "Laster inventar...",
+    "emptyTitle": "Ingen ingredienser i denne kategorien",
+    "emptyDescription": "Legg til en ingrediens for å begynne å holde oversikt over lageret.",
+    "name": "Navn",
+    "producer": "Produsent",
+    "noProducer": "Produsent ikke angitt",
+    "inStock": "På lager",
+    "lowStock": "Lite på lager",
+    "lowStockThreshold": "Grense for lav lagerbeholdning",
+    "lotNumber": "Partinummer",
+    "bestBefore": "Best før",
+    "location": "Plassering",
+    "notes": "Notater",
+    "optional": "Valgfritt",
+    "colorEbc": "Farge (EBC)",
+    "yieldPercent": "Utbytte (%)",
+    "alphaAcid": "Alfasyre (%)",
+    "saving": "Lagrer...",
+    "deleting": "Sletter...",
+    "deleteTitle": "Slette lagerposten?",
+    "deleteDescription": "Er du sikker på at du vil slette {{name}} fra inventaret?",
+    "sources": {
+      "built_in": "Ingrediensbibliotek",
+      "custom": "Egen"
+    },
+    "errors": {
+      "ingredientRequired": "Velg en ingrediens eller skriv inn et navn.",
+      "amountInvalid": "Lagermengden må være null eller høyere.",
+      "thresholdInvalid": "Grensen for lav lagerbeholdning må være null eller høyere.",
+      "save": "Lagerposten kunne ikke lagres.",
+      "delete": "Lagerposten kunne ikke slettes."
+    }
   },
   "settings": {
     "loading": "Laster innstillinger...",
@@ -124,6 +179,7 @@
   },
   "ingredients": {
     "amountPositive": "Mengden må være et positivt tall",
+    "inStock": "På lager: {{stock}}",
     "fermentable": {
       "add": "Legg til gjærbar ingrediens",
       "edit": "Rediger gjærbar ingrediens",
@@ -315,6 +371,9 @@
     "deleteConfirmationBefore": "Er du sikker på at du vil slette",
     "deleteConfirmationAfter": "Dette kan ikke angres. Bare brygget slettes, ikke den opprinnelige oppskriften.",
     "deleting": "Sletter...",
+    "deleteSuccess": "Brygget ble slettet.",
+    "deleteSuccessRestored": "Brygget ble slettet og lagerbeholdningen ble tilbakeført.",
+    "deleteFailed": "Brygget kunne ikke slettes. Ingen lagerverdier ble endret.",
     "notesLabel": "Bryggnotater",
     "notesPlaceholder": "Legg til bryggenotater, observasjoner, justeringer under bryggingen, smaksnotater og lignende...",
     "brewedOn": "Brygget {{date}}.",
@@ -330,6 +389,20 @@
     "empty": "Ingen brygg ennå. Klikk «Brygg» på en oppskrift for å starte ditt første brygg!",
     "recipeLabel": "Oppskrift",
     "brewedLabel": "Brygget",
-    "showingRecent": "Viser de {{count}} nyeste bryggene"
+    "showingRecent": "Viser de {{count}} nyeste bryggene",
+    "inventory": {
+      "deduct": "Trekk ingredienser fra inventaret",
+      "deductHelp": "Uttaket lagres sammen med brygget og utføres bare én gang når brygget opprettes.",
+      "required": "Behov: {{amount}}",
+      "available": "Tilgjengelig",
+      "missing": "Mangler {{amount}}",
+      "shortageWarning": "Noen ingredienser mangler eller har for liten beholdning. Tilgjengelig lager trekkes, og mangelen lagres sammen med brygget.",
+      "createAndDeduct": "Opprett brygg og trekk fra lager",
+      "createFailed": "Brygget kunne ikke opprettes. Ingen lagerendringer ble utført.",
+      "deleteReturnTitle": "Disse mengdene tilbakeføres til inventaret",
+      "deleteReturnDescription": "De faktiske mengdene som ble trukket da brygget ble opprettet, legges til dagens beholdning:",
+      "deleteAtomicHelp": "Hvis lageret ikke kan tilbakeføres, blir brygget ikke slettet.",
+      "deleteAndRestore": "Slett brygg og tilbakefør lager"
+    }
   }
 }

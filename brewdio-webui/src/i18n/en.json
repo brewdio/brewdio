@@ -16,7 +16,62 @@
     "title": "Navigation",
     "home": "Home",
     "brewery": "Brewery",
+    "inventory": "Inventory",
     "docs": "Docs"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "description": "Track brewing ingredients, quantities, lots and storage locations.",
+    "categoriesLabel": "Ingredient categories",
+    "categories": {
+      "fermentable": "Malt",
+      "hop": "Hops",
+      "culture": "Yeast"
+    },
+    "add": "Add inventory item",
+    "edit": "Edit inventory item",
+    "addTitle": "Add inventory item",
+    "editTitle": "Edit inventory item",
+    "dialogDescription": "Choose an ingredient and enter what you currently have in stock.",
+    "useBuiltIn": "Choose ingredient",
+    "createCustom": "Create custom ingredient",
+    "ingredient": "Ingredient",
+    "selectIngredient": "Select an ingredient",
+    "searchIngredients": "Search ingredients...",
+    "noIngredientFound": "No ingredient found.",
+    "searchPlaceholder": "Search inventory...",
+    "loading": "Loading inventory...",
+    "emptyTitle": "No ingredients in this category",
+    "emptyDescription": "Add an ingredient to start tracking your stock.",
+    "name": "Name",
+    "producer": "Producer",
+    "noProducer": "Producer not specified",
+    "inStock": "In stock",
+    "lowStock": "Low stock",
+    "lowStockThreshold": "Low-stock threshold",
+    "lotNumber": "Lot number",
+    "bestBefore": "Best before",
+    "location": "Location",
+    "notes": "Notes",
+    "optional": "Optional",
+    "colorEbc": "Color (EBC)",
+    "yieldPercent": "Yield (%)",
+    "alphaAcid": "Alpha acid (%)",
+    "saving": "Saving...",
+    "deleting": "Deleting...",
+    "deleteTitle": "Delete inventory item?",
+    "deleteDescription": "Are you sure you want to delete {{name}} from inventory?",
+    "sources": {
+      "built_in": "Ingredient library",
+      "custom": "Custom"
+    },
+    "errors": {
+      "ingredientRequired": "Select an ingredient or enter a name.",
+      "amountInvalid": "The stock amount must be zero or greater.",
+      "thresholdInvalid": "The low-stock threshold must be zero or greater.",
+      "save": "The inventory item could not be saved.",
+      "delete": "The inventory item could not be deleted."
+    }
   },
   "settings": {
     "loading": "Loading settings...",
@@ -124,6 +179,7 @@
   },
   "ingredients": {
     "amountPositive": "Amount must be a positive number",
+    "inStock": "In stock: {{stock}}",
     "fermentable": {
       "add": "Add Fermentable",
       "edit": "Edit Fermentable",
@@ -315,6 +371,9 @@
     "deleteConfirmationBefore": "Are you sure you want to delete",
     "deleteConfirmationAfter": "This action cannot be undone. This will only delete the batch record, not the original recipe.",
     "deleting": "Deleting...",
+    "deleteSuccess": "The batch was deleted.",
+    "deleteSuccessRestored": "The batch was deleted and the inventory quantities were restored.",
+    "deleteFailed": "The batch could not be deleted. No inventory quantities were changed.",
     "notesLabel": "Batch Notes",
     "notesPlaceholder": "Add brewing notes, observations, adjustments made during brewing, tasting notes, etc...",
     "brewedOn": "Brewed on {{date}}.",
@@ -330,6 +389,20 @@
     "empty": "No batches yet. Click \"Brew\" on a recipe to start your first batch!",
     "recipeLabel": "Recipe",
     "brewedLabel": "Brewed",
-    "showingRecent": "Showing {{count}} most recent batches"
+    "showingRecent": "Showing {{count}} most recent batches",
+    "inventory": {
+      "deduct": "Deduct ingredients from inventory",
+      "deductHelp": "The deduction is recorded with the batch and is only performed once when the batch is created.",
+      "required": "Required: {{amount}}",
+      "available": "Available",
+      "missing": "Missing {{amount}}",
+      "shortageWarning": "Some ingredients are missing or insufficient. Available stock will be deducted, and the shortage will be recorded with the batch.",
+      "createAndDeduct": "Create batch and deduct stock",
+      "createFailed": "The batch could not be created. No inventory changes were made.",
+      "deleteReturnTitle": "These quantities will be returned to inventory",
+      "deleteReturnDescription": "The actual quantities deducted when the batch was created will be added to the current inventory:",
+      "deleteAtomicHelp": "If the inventory cannot be restored, the batch will not be deleted.",
+      "deleteAndRestore": "Delete batch and restore inventory"
+    }
   }
 }

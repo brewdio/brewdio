@@ -95,6 +95,7 @@ function RecipeBatchesComponent() {
                     <DeleteBatchDialog
                       batchId={batch.id}
                       batchName={batch.name}
+                      inventoryDeductions={batch.inventoryDeductions}
                       variant="destructive"
                       size="sm"
                       redirectOnDelete={false}

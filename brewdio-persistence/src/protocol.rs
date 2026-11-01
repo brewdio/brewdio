@@ -8,6 +8,7 @@ pub enum DocType {
     Batch,
     Settings,
     EquipmentProfile,
+    InventoryItem,
 }
 
 impl DocType {
@@ -17,6 +18,7 @@ impl DocType {
             DocType::Batch => "batch",
             DocType::Settings => "settings",
             DocType::EquipmentProfile => "equipment_profile",
+            DocType::InventoryItem => "inventory_item",
         }
     }
 
@@ -25,6 +27,7 @@ impl DocType {
         DocType::Batch,
         DocType::Settings,
         DocType::EquipmentProfile,
+        DocType::InventoryItem,
     ];
 }
 
@@ -40,6 +43,8 @@ pub enum SyncMessage {
         settings_ids: Vec<String>,
         #[serde(default)]
         equipment_profile_ids: Vec<String>,
+        #[serde(default)]
+        inventory_item_ids: Vec<String>,
         #[serde(default)]
         schema_version: u32,
     },

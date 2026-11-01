@@ -1,4 +1,9 @@
-use brewdio_core::beerjson_types::{EquipmentType, RecipeType};
+use brewdio_core::beerjson_types::{
+    EquipmentType, MassUnitType, RecipeType, VolumeUnitType,
+};
+use brewdio_core::inventory::{
+    InventoryDeduction, InventoryQuantity, InventoryShortage,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::connection::{Connection, DbError, Value};
@@ -19,6 +24,14 @@ pub struct Batch {
     pub data: BatchData,
 }
 
+fn default_inventory_deductions() -> Vec<InventoryDeduction> {
+    Vec::new()
+}
+
+fn default_inventory_shortages() -> Vec<InventoryShortage> {
+    Vec::new()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, autosurgeon::Reconcile, autosurgeon::Hydrate)]
 #[serde(rename_all = "camelCase")]
 pub struct BatchData {
@@ -29,6 +42,29 @@ pub struct BatchData {
     pub notes: Option<String>,
     pub created_at: u64,
     pub updated_at: u64,
+    #[serde(default)]
+    #[autosurgeon(missing = "default_inventory_deductions")]
+    pub inventory_deductions: Vec<InventoryDeduction>,
+    #[serde(default)]
+    #[autosurgeon(missing = "default_inventory_shortages")]
+    pub inventory_shortages: Vec<InventoryShortage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InventoryDeductionRequest {
+    pub inventory_item_id: String,
+    pub quantity: InventoryQuantity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct InventoryDeductionPlan {
+    #[serde(default)]
+    pub deductions: Vec<InventoryDeductionRequest>,
+    #[serde(default)]
+    pub shortages: Vec<InventoryShortage>,
+    pub updated_at: String,
 }
 
 pub struct BatchRow {
@@ -162,6 +198,186 @@ pub fn create_batch(
     })
 }
 
+fn subtract_quantity(
+    current: &InventoryQuantity,
+    requested: &InventoryQuantity,
+) -> Result<InventoryQuantity, DbError> {
+    const EPSILON: f64 = 0.000_001;
+    match (current, requested) {
+        (InventoryQuantity::Mass(current), InventoryQuantity::Mass(requested)) => {
+            let current_grams = brewdio_core::units::mass_to_grams(current);
+            let requested_grams = brewdio_core::units::mass_to_grams(requested);
+            if requested_grams > current_grams + EPSILON {
+                return Err(DbError("Inventory deduction exceeds available mass".into()));
+            }
+            let value = match current.unit {
+                MassUnitType::Mg => (current_grams - requested_grams) * 1000.0,
+                MassUnitType::G => current_grams - requested_grams,
+                MassUnitType::Kg => (current_grams - requested_grams) / 1000.0,
+                MassUnitType::Lb => (current_grams - requested_grams) / 453.592,
+                MassUnitType::Oz => (current_grams - requested_grams) / 28.3495,
+            };
+            Ok(InventoryQuantity::Mass(brewdio_core::beerjson_types::MassType {
+                unit: current.unit,
+                value: value.max(0.0),
+            }))
+        }
+        (InventoryQuantity::Volume(current), InventoryQuantity::Volume(requested)) => {
+            let current_ml = brewdio_core::units::volume_to_milliliters(current);
+            let requested_ml = brewdio_core::units::volume_to_milliliters(requested);
+            if requested_ml > current_ml + EPSILON {
+                return Err(DbError("Inventory deduction exceeds available volume".into()));
+            }
+            let value = match current.unit {
+                VolumeUnitType::Ml => current_ml - requested_ml,
+                VolumeUnitType::L => (current_ml - requested_ml) / 1000.0,
+                VolumeUnitType::Tsp => (current_ml - requested_ml) / 4.92892,
+                VolumeUnitType::Tbsp => (current_ml - requested_ml) / 14.7868,
+                VolumeUnitType::Floz => (current_ml - requested_ml) / 29.5735,
+                VolumeUnitType::Cup => (current_ml - requested_ml) / 236.588,
+                VolumeUnitType::Pt => (current_ml - requested_ml) / 473.176,
+                VolumeUnitType::Qt => (current_ml - requested_ml) / 946.353,
+                VolumeUnitType::Gal => (current_ml - requested_ml) / 3785.41,
+                VolumeUnitType::Bbl => (current_ml - requested_ml) / 117347.77,
+                VolumeUnitType::Ifloz => (current_ml - requested_ml) / 28.4131,
+                VolumeUnitType::Ipt => (current_ml - requested_ml) / 568.261,
+                VolumeUnitType::Iqt => (current_ml - requested_ml) / 1136.52,
+                VolumeUnitType::Igal => (current_ml - requested_ml) / 4546.09,
+                VolumeUnitType::Ibbl => (current_ml - requested_ml) / 163659.24,
+            };
+            Ok(InventoryQuantity::Volume(
+                brewdio_core::beerjson_types::VolumeType {
+                    unit: current.unit,
+                    value: value.max(0.0),
+                },
+            ))
+        }
+        (InventoryQuantity::Unit(current), InventoryQuantity::Unit(requested)) => {
+            if current.unit != requested.unit {
+                return Err(DbError("Inventory unit types do not match".into()));
+            }
+            if requested.value > current.value + EPSILON {
+                return Err(DbError("Inventory deduction exceeds available units".into()));
+            }
+            Ok(InventoryQuantity::Unit(brewdio_core::beerjson_types::UnitType {
+                unit: current.unit,
+                value: (current.value - requested.value).max(0.0),
+            }))
+        }
+        _ => Err(DbError("Inventory quantity types do not match".into())),
+    }
+}
+
+fn add_quantity(
+    current: &InventoryQuantity,
+    restored: &InventoryQuantity,
+) -> Result<InventoryQuantity, DbError> {
+    match (current, restored) {
+        (InventoryQuantity::Mass(current), InventoryQuantity::Mass(restored)) => {
+            let total_grams = brewdio_core::units::mass_to_grams(current)
+                + brewdio_core::units::mass_to_grams(restored);
+            let value = match current.unit {
+                MassUnitType::Mg => total_grams * 1000.0,
+                MassUnitType::G => total_grams,
+                MassUnitType::Kg => total_grams / 1000.0,
+                MassUnitType::Lb => total_grams / 453.592,
+                MassUnitType::Oz => total_grams / 28.3495,
+            };
+            Ok(InventoryQuantity::Mass(brewdio_core::beerjson_types::MassType {
+                unit: current.unit,
+                value,
+            }))
+        }
+        (InventoryQuantity::Volume(current), InventoryQuantity::Volume(restored)) => {
+            let total_ml = brewdio_core::units::volume_to_milliliters(current)
+                + brewdio_core::units::volume_to_milliliters(restored);
+            let value = match current.unit {
+                VolumeUnitType::Ml => total_ml,
+                VolumeUnitType::L => total_ml / 1000.0,
+                VolumeUnitType::Tsp => total_ml / 4.92892,
+                VolumeUnitType::Tbsp => total_ml / 14.7868,
+                VolumeUnitType::Floz => total_ml / 29.5735,
+                VolumeUnitType::Cup => total_ml / 236.588,
+                VolumeUnitType::Pt => total_ml / 473.176,
+                VolumeUnitType::Qt => total_ml / 946.353,
+                VolumeUnitType::Gal => total_ml / 3785.41,
+                VolumeUnitType::Bbl => total_ml / 117347.77,
+                VolumeUnitType::Ifloz => total_ml / 28.4131,
+                VolumeUnitType::Ipt => total_ml / 568.261,
+                VolumeUnitType::Iqt => total_ml / 1136.52,
+                VolumeUnitType::Igal => total_ml / 4546.09,
+                VolumeUnitType::Ibbl => total_ml / 163659.24,
+            };
+            Ok(InventoryQuantity::Volume(
+                brewdio_core::beerjson_types::VolumeType {
+                    unit: current.unit,
+                    value,
+                },
+            ))
+        }
+        (InventoryQuantity::Unit(current), InventoryQuantity::Unit(restored)) => {
+            if current.unit != restored.unit {
+                return Err(DbError("Inventory unit types do not match".into()));
+            }
+            Ok(InventoryQuantity::Unit(brewdio_core::beerjson_types::UnitType {
+                unit: current.unit,
+                value: current.value + restored.value,
+            }))
+        }
+        _ => Err(DbError("Inventory quantity types do not match".into())),
+    }
+}
+
+pub fn create_batch_with_inventory(
+    conn: &(impl Connection + ?Sized),
+    name: &str,
+    recipe_id: &str,
+    mut data: BatchData,
+    plan: InventoryDeductionPlan,
+) -> Result<BatchRow, DbError> {
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = (|| {
+        let mut applied = Vec::new();
+        for request in &plan.deductions {
+            let mut item = crate::inventory::get_inventory_item(conn, &request.inventory_item_id)?
+                .ok_or_else(|| {
+                    DbError(format!(
+                        "Inventory item not found: {}",
+                        request.inventory_item_id
+                    ))
+                })?;
+            let before = item.quantity.clone();
+            let after = subtract_quantity(&before, &request.quantity)?;
+            item.quantity = after.clone();
+            item.updated_at = plan.updated_at.clone();
+            crate::inventory::update_inventory_item(conn, &item.id, &item)?;
+            applied.push(InventoryDeduction {
+                inventory_item_id: item.id.clone(),
+                ingredient_name: item.name().to_string(),
+                quantity: request.quantity.clone(),
+                before,
+                after,
+            });
+        }
+
+        data.inventory_deductions = applied;
+        data.inventory_shortages = plan.shortages;
+        let data_json = serde_json::to_string(&data).map_err(|e| DbError(e.to_string()))?;
+        create_batch(conn, name, recipe_id, &data_json)
+    })();
+
+    match result {
+        Ok(row) => {
+            conn.execute_batch("COMMIT;")?;
+            Ok(row)
+        }
+        Err(error) => {
+            let _ = conn.execute_batch("ROLLBACK;");
+            Err(error)
+        }
+    }
+}
+
 pub fn get_batch_row(
     conn: &(impl Connection + ?Sized),
     id: &str,
@@ -231,6 +447,53 @@ pub fn delete_batch(conn: &(impl Connection + ?Sized), id: &str) -> Result<(), D
     crate::traits::set_deleted(conn, existing, id, true)
 }
 
+pub fn delete_batch_with_inventory(
+    conn: &(impl Connection + ?Sized),
+    id: &str,
+    updated_at: &str,
+) -> Result<bool, DbError> {
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = (|| {
+        let existing = get_batch_row(conn, id)?
+            .ok_or_else(|| DbError(format!("Batch not found: {id}")))?;
+        if existing.is_deleted {
+            return Ok(false);
+        }
+
+        let data = existing.to_data().map_err(|e| DbError(e.to_string()))?;
+        for deduction in &data.inventory_deductions {
+            let row = crate::inventory::get_inventory_item_row(
+                conn,
+                &deduction.inventory_item_id,
+            )?
+            .ok_or_else(|| {
+                DbError(format!(
+                    "Inventory item not found: {}",
+                    deduction.inventory_item_id
+                ))
+            })?;
+            let mut item = row.to_item().map_err(|e| DbError(e.to_string()))?;
+            item.quantity = add_quantity(&item.quantity, &deduction.quantity)?;
+            item.updated_at = updated_at.to_string();
+            crate::inventory::update_inventory_item(conn, &item.id, &item)?;
+        }
+
+        delete_batch(conn, id)?;
+        Ok(!data.inventory_deductions.is_empty())
+    })();
+
+    match result {
+        Ok(restored_inventory) => {
+            conn.execute_batch("COMMIT;")?;
+            Ok(restored_inventory)
+        }
+        Err(error) => {
+            let _ = conn.execute_batch("ROLLBACK;");
+            Err(error)
+        }
+    }
+}
+
 pub fn create_batch_from_recipe(
     conn: &(impl Connection + ?Sized),
     name: &str,
@@ -248,6 +511,8 @@ pub fn create_batch_from_recipe(
         notes: None,
         created_at: now,
         updated_at: now,
+        inventory_deductions: Vec::new(),
+        inventory_shortages: Vec::new(),
     };
     let json = serde_json::to_string(&data).map_err(|e| DbError(e.to_string()))?;
     create_batch(conn, name, recipe_id, &json)
@@ -268,6 +533,10 @@ pub fn count_batches_for_recipe(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use brewdio_core::beerjson_types::{MassType, MassUnitType};
+    use brewdio_core::inventory::{
+        InventoryIngredient, InventoryItem, InventorySource,
+    };
 
     fn test_conn() -> rusqlite::Connection {
         crate::connection_native::open(":memory:").unwrap()
@@ -287,7 +556,29 @@ mod tests {
             notes: Some("test".to_string()),
             created_at: 1000,
             updated_at: 1000,
+            inventory_deductions: Vec::new(),
+            inventory_shortages: Vec::new(),
         }).unwrap()
+    }
+
+    #[derive(autosurgeon::Reconcile)]
+    struct LegacyBatchData {
+        equipment_id: String,
+        recipe: RecipeType,
+        equipment: EquipmentType,
+        brew_date: u64,
+        notes: Option<String>,
+        created_at: u64,
+        updated_at: u64,
+    }
+
+    #[derive(autosurgeon::Reconcile)]
+    struct LegacyBatchDocument {
+        id: String,
+        name: String,
+        recipe_id: String,
+        data: LegacyBatchData,
+        is_deleted: bool,
     }
 
     #[test]
@@ -329,6 +620,324 @@ mod tests {
         assert!(fetched.is_deleted);
         assert!(fetched.is_dirty);
         assert!(!fetched.am_data.is_empty(), "am_data should be populated on delete");
+    }
+
+    #[test]
+    fn batch_creation_deducts_inventory_atomically() {
+        let conn = test_conn();
+        let inventory_item = InventoryItem {
+            id: String::new(),
+            ingredient: InventoryIngredient::Fermentable(
+                brewdio_core::data::fermentables()[0].clone(),
+            ),
+            source: InventorySource::BuiltIn,
+            quantity: InventoryQuantity::Mass(MassType {
+                unit: MassUnitType::Kg,
+                value: 5.0,
+            }),
+            low_stock_threshold: None,
+            lot_number: None,
+            best_before: None,
+            location: None,
+            notes: None,
+            created_at: "2026-11-01T10:00:00Z".into(),
+            updated_at: "2026-11-01T10:00:00Z".into(),
+        };
+        let inventory_row =
+            crate::inventory::create_inventory_item(&conn, &inventory_item).unwrap();
+        let data: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let plan = InventoryDeductionPlan {
+            deductions: vec![InventoryDeductionRequest {
+                inventory_item_id: inventory_row.id.clone(),
+                quantity: InventoryQuantity::Mass(MassType {
+                    unit: MassUnitType::G,
+                    value: 2000.0,
+                }),
+            }],
+            shortages: Vec::new(),
+            updated_at: "2026-11-01T11:00:00Z".into(),
+        };
+
+        let batch = create_batch_with_inventory(&conn, "Batch", "recipe-1", data, plan)
+            .unwrap();
+        let remaining = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        match remaining.quantity {
+            InventoryQuantity::Mass(value) => assert!((value.value - 3.0).abs() < 0.0001),
+            _ => panic!("expected mass inventory"),
+        }
+        let stored = get_batch(&conn, &batch.id).unwrap().unwrap();
+        assert_eq!(stored.data.inventory_deductions.len(), 1);
+
+        let data: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let overdraw = InventoryDeductionPlan {
+            deductions: vec![InventoryDeductionRequest {
+                inventory_item_id: inventory_row.id.clone(),
+                quantity: InventoryQuantity::Mass(MassType {
+                    unit: MassUnitType::Kg,
+                    value: 4.0,
+                }),
+            }],
+            shortages: Vec::new(),
+            updated_at: "2026-11-01T12:00:00Z".into(),
+        };
+        assert!(create_batch_with_inventory(&conn, "Invalid", "recipe-1", data, overdraw)
+            .is_err());
+        assert_eq!(list_batches(&conn).unwrap().len(), 1);
+        let remaining = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        match remaining.quantity {
+            InventoryQuantity::Mass(value) => assert!((value.value - 3.0).abs() < 0.0001),
+            _ => panic!("expected mass inventory"),
+        }
+    }
+
+    #[test]
+    fn batch_deletion_restores_inventory_once_and_preserves_later_changes() {
+        let conn = test_conn();
+        let inventory_row = crate::inventory::create_inventory_item(
+            &conn,
+            &InventoryItem {
+                id: String::new(),
+                ingredient: InventoryIngredient::Fermentable(
+                    brewdio_core::data::fermentables()[0].clone(),
+                ),
+                source: InventorySource::BuiltIn,
+                quantity: InventoryQuantity::Mass(MassType {
+                    unit: MassUnitType::Kg,
+                    value: 5.0,
+                }),
+                low_stock_threshold: None,
+                lot_number: None,
+                best_before: None,
+                location: None,
+                notes: None,
+                created_at: "2026-11-01T10:00:00Z".into(),
+                updated_at: "2026-11-01T10:00:00Z".into(),
+            },
+        )
+        .unwrap();
+        let data: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let batch = create_batch_with_inventory(
+            &conn,
+            "Batch",
+            "recipe-1",
+            data,
+            InventoryDeductionPlan {
+                deductions: vec![InventoryDeductionRequest {
+                    inventory_item_id: inventory_row.id.clone(),
+                    quantity: InventoryQuantity::Mass(MassType {
+                        unit: MassUnitType::G,
+                        value: 2000.0,
+                    }),
+                }],
+                shortages: Vec::new(),
+                updated_at: "2026-11-01T11:00:00Z".into(),
+            },
+        )
+        .unwrap();
+
+        let mut item = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        item.quantity = InventoryQuantity::Mass(MassType {
+            unit: MassUnitType::Kg,
+            value: 4.0,
+        });
+        crate::inventory::update_inventory_item(&conn, &item.id, &item).unwrap();
+
+        assert!(delete_batch_with_inventory(
+            &conn,
+            &batch.id,
+            "2026-11-01T12:00:00Z"
+        )
+        .unwrap());
+        let restored = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        match restored.quantity {
+            InventoryQuantity::Mass(value) => assert!((value.value - 6.0).abs() < 0.0001),
+            _ => panic!("expected mass inventory"),
+        }
+        assert_eq!(restored.updated_at, "2026-11-01T12:00:00Z");
+        assert!(get_batch(&conn, &batch.id).unwrap().is_none());
+
+        assert!(!delete_batch_with_inventory(
+            &conn,
+            &batch.id,
+            "2026-11-01T13:00:00Z"
+        )
+        .unwrap());
+        let restored = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        match restored.quantity {
+            InventoryQuantity::Mass(value) => assert!((value.value - 6.0).abs() < 0.0001),
+            _ => panic!("expected mass inventory"),
+        }
+    }
+
+    #[test]
+    fn batch_deletion_restores_a_soft_deleted_inventory_item() {
+        let conn = test_conn();
+        let inventory_row = crate::inventory::create_inventory_item(
+            &conn,
+            &InventoryItem {
+                id: String::new(),
+                ingredient: InventoryIngredient::Fermentable(
+                    brewdio_core::data::fermentables()[0].clone(),
+                ),
+                source: InventorySource::BuiltIn,
+                quantity: InventoryQuantity::Mass(MassType {
+                    unit: MassUnitType::Kg,
+                    value: 5.0,
+                }),
+                low_stock_threshold: None,
+                lot_number: None,
+                best_before: None,
+                location: None,
+                notes: None,
+                created_at: "2026-11-01T10:00:00Z".into(),
+                updated_at: "2026-11-01T10:00:00Z".into(),
+            },
+        )
+        .unwrap();
+        let data: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let batch = create_batch_with_inventory(
+            &conn,
+            "Batch",
+            "recipe-1",
+            data,
+            InventoryDeductionPlan {
+                deductions: vec![InventoryDeductionRequest {
+                    inventory_item_id: inventory_row.id.clone(),
+                    quantity: InventoryQuantity::Mass(MassType {
+                        unit: MassUnitType::Kg,
+                        value: 2.0,
+                    }),
+                }],
+                shortages: Vec::new(),
+                updated_at: "2026-11-01T11:00:00Z".into(),
+            },
+        )
+        .unwrap();
+        crate::inventory::delete_inventory_item(&conn, &inventory_row.id).unwrap();
+        assert!(crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .is_none());
+
+        assert!(delete_batch_with_inventory(
+            &conn,
+            &batch.id,
+            "2026-11-01T12:00:00Z"
+        )
+        .unwrap());
+        let restored = crate::inventory::get_inventory_item(&conn, &inventory_row.id)
+            .unwrap()
+            .unwrap();
+        match restored.quantity {
+            InventoryQuantity::Mass(value) => assert!((value.value - 5.0).abs() < 0.0001),
+            _ => panic!("expected mass inventory"),
+        }
+    }
+
+    #[test]
+    fn batch_deletion_rolls_back_when_inventory_item_is_missing() {
+        let conn = test_conn();
+        let inventory_row = crate::inventory::create_inventory_item(
+            &conn,
+            &InventoryItem {
+                id: String::new(),
+                ingredient: InventoryIngredient::Fermentable(
+                    brewdio_core::data::fermentables()[0].clone(),
+                ),
+                source: InventorySource::BuiltIn,
+                quantity: InventoryQuantity::Mass(MassType {
+                    unit: MassUnitType::Kg,
+                    value: 5.0,
+                }),
+                low_stock_threshold: None,
+                lot_number: None,
+                best_before: None,
+                location: None,
+                notes: None,
+                created_at: "2026-11-01T10:00:00Z".into(),
+                updated_at: "2026-11-01T10:00:00Z".into(),
+            },
+        )
+        .unwrap();
+        let data: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let batch = create_batch_with_inventory(
+            &conn,
+            "Batch",
+            "recipe-1",
+            data,
+            InventoryDeductionPlan {
+                deductions: vec![InventoryDeductionRequest {
+                    inventory_item_id: inventory_row.id.clone(),
+                    quantity: InventoryQuantity::Mass(MassType {
+                        unit: MassUnitType::Kg,
+                        value: 2.0,
+                    }),
+                }],
+                shortages: Vec::new(),
+                updated_at: "2026-11-01T11:00:00Z".into(),
+            },
+        )
+        .unwrap();
+        conn.execute(
+            "DELETE FROM inventory_item WHERE id = ?1",
+            rusqlite::params![inventory_row.id],
+        )
+        .unwrap();
+
+        assert!(delete_batch_with_inventory(
+            &conn,
+            &batch.id,
+            "2026-11-01T12:00:00Z"
+        )
+        .is_err());
+        assert!(get_batch(&conn, &batch.id).unwrap().is_some());
+    }
+
+    #[test]
+    fn batch_deletion_without_inventory_deductions_deletes_normally() {
+        let conn = test_conn();
+        let row = create_batch(&conn, "Batch", "recipe-1", &sample_batch_data_json()).unwrap();
+        assert!(!delete_batch_with_inventory(
+            &conn,
+            &row.id,
+            "2026-11-01T12:00:00Z"
+        )
+        .unwrap());
+        assert!(get_batch(&conn, &row.id).unwrap().is_none());
+    }
+
+    #[test]
+    fn hydrates_legacy_batch_without_inventory_history() {
+        let current: BatchData = serde_json::from_str(&sample_batch_data_json()).unwrap();
+        let legacy = LegacyBatchDocument {
+            id: "legacy-batch".into(),
+            name: "Legacy".into(),
+            recipe_id: "recipe-1".into(),
+            data: LegacyBatchData {
+                equipment_id: current.equipment_id,
+                recipe: current.recipe,
+                equipment: current.equipment,
+                brew_date: current.brew_date,
+                notes: current.notes,
+                created_at: current.created_at,
+                updated_at: current.updated_at,
+            },
+            is_deleted: false,
+        };
+        let bytes = reconcile_to_automerge(&legacy, None).unwrap();
+        let hydrated: BatchDocument =
+            crate::automerge::hydrate_from_automerge(&bytes).unwrap();
+        assert!(hydrated.data.inventory_deductions.is_empty());
+        assert!(hydrated.data.inventory_shortages.is_empty());
     }
 
     #[test]

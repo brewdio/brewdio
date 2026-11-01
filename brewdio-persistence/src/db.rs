@@ -4,6 +4,7 @@ use crate::batch::{self, BatchDocument};
 use crate::connection::{Connection, DbError, Value};
 use crate::automerge::{extract_fields_from_automerge, new_ulid, reconcile_to_automerge};
 use crate::equipment_profile::{self, EquipmentProfileDocument};
+use crate::inventory::{self, InventoryItemDocument};
 use crate::protocol::DocType;
 use crate::recipe::{Recipe, RecipeDocument, RecipeRow};
 use crate::settings::{self, SettingsDocument};
@@ -517,6 +518,66 @@ impl RemoteMergeable for EquipmentProfileDocument {
     }
 }
 
+impl RemoteMergeable for InventoryItemDocument {
+    fn apply_hydrated(
+        conn: &(impl Connection + ?Sized),
+        id: &str,
+        doc: &Self,
+        am_data: &[u8],
+        exists: bool,
+    ) -> Result<(), DbError> {
+        let data = serde_json::to_string(&doc.item).map_err(|e| DbError(e.to_string()))?;
+        let name = doc.item.name();
+        let kind = doc.item.kind();
+        if exists {
+            conn.execute(
+                "UPDATE inventory_item SET name = ?1, kind = ?2, data = ?3, am_data = ?4, is_deleted = ?5 WHERE id = ?6",
+                &[
+                    Value::Text(name),
+                    Value::Text(kind),
+                    Value::Text(&data),
+                    Value::Blob(am_data),
+                    Value::Bool(doc.is_deleted),
+                    Value::Text(id),
+                ],
+            )?;
+        } else {
+            conn.execute(
+                "INSERT INTO inventory_item (id, name, kind, data, am_data, is_deleted, is_dirty) VALUES (?1, ?2, ?3, ?4, ?5, ?6, FALSE)",
+                &[
+                    Value::Text(id),
+                    Value::Text(name),
+                    Value::Text(kind),
+                    Value::Text(&data),
+                    Value::Blob(am_data),
+                    Value::Bool(doc.is_deleted),
+                ],
+            )?;
+        }
+        Ok(())
+    }
+
+    fn apply_fallback(
+        conn: &(impl Connection + ?Sized),
+        id: &str,
+        am_data: &[u8],
+        exists: bool,
+    ) -> Result<(), DbError> {
+        if exists {
+            conn.execute(
+                "UPDATE inventory_item SET am_data = ?1 WHERE id = ?2",
+                &[Value::Blob(am_data), Value::Text(id)],
+            )?;
+        } else {
+            conn.execute(
+                "INSERT INTO inventory_item (id, name, kind, data, am_data, is_deleted, is_dirty) VALUES (?1, '', '', '{}', ?2, FALSE, FALSE)",
+                &[Value::Text(id), Value::Blob(am_data)],
+            )?;
+        }
+        Ok(())
+    }
+}
+
 // --- Generic sync dispatch functions ---
 
 /// Get `am_data` for any document type by ID.
@@ -532,6 +593,7 @@ pub fn get_doc_am_data(
             r.map(|r| r.am_data).filter(|am| !am.is_empty())
         }),
         DocType::EquipmentProfile => equipment_profile::get_equipment_profile_row(conn, id).map(|r| r.map(|r| r.am_data)),
+        DocType::InventoryItem => inventory::get_inventory_item_row(conn, id).map(|r| r.map(|r| r.am_data)),
     }
 }
 
@@ -613,6 +675,10 @@ pub fn apply_remote_merge_doc(
         DocType::EquipmentProfile => {
             let exists = equipment_profile::get_equipment_profile_row(conn, id)?.is_some();
             apply_remote_merge_generic::<EquipmentProfileDocument>(conn, id, am_data, exists)
+        }
+        DocType::InventoryItem => {
+            let exists = inventory::get_inventory_item_row(conn, id)?.is_some();
+            apply_remote_merge_generic::<InventoryItemDocument>(conn, id, am_data, exists)
         }
     }
 }

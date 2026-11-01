@@ -1,5 +1,5 @@
-import type { AppDb as AppDbClass, EquipmentType, RecipeType, EquipmentProfile } from "brewdio-wasm";
-import type { DataBackend, Recipe, Batch, SettingsDocument } from "./backend";
+import type { AppDb as AppDbClass, EquipmentType, RecipeType, EquipmentProfile, InventoryItem } from "brewdio-wasm";
+import type { DataBackend, Recipe, Batch, SettingsDocument, InventoryDeductionPlan } from "./backend";
 
 /**
  * WASM backend — wraps the existing AppDb WASM class.
@@ -49,16 +49,16 @@ export class WasmBackend implements DataBackend {
     return (result ?? null) as unknown as Batch | null;
   }
 
-  async createBatch(name: string, recipeId: string, data: unknown): Promise<string> {
-    return this.db.createBatch(name, recipeId, data);
+  async createBatch(name: string, recipeId: string, data: unknown, inventoryPlan: InventoryDeductionPlan): Promise<string> {
+    return this.db.createBatch(name, recipeId, data, inventoryPlan);
   }
 
   async updateBatch(id: string, name: string, data: unknown): Promise<void> {
     this.db.updateBatch(id, name, data);
   }
 
-  async deleteBatch(id: string): Promise<void> {
-    this.db.deleteBatch(id);
+  async deleteBatch(id: string, updatedAt: string): Promise<void> {
+    this.db.deleteBatch(id, updatedAt);
   }
 
   // --- Settings ---
@@ -89,6 +89,29 @@ export class WasmBackend implements DataBackend {
     this.db.deleteEquipmentProfile(id);
   }
 
+  // --- Inventory ---
+
+  async listInventoryItems(): Promise<InventoryItem[]> {
+    return this.db.listInventoryItems() as unknown as InventoryItem[];
+  }
+
+  async getInventoryItem(id: string): Promise<InventoryItem | null> {
+    const result = this.db.getInventoryItem(id);
+    return (result ?? null) as unknown as InventoryItem | null;
+  }
+
+  async createInventoryItem(item: InventoryItem): Promise<string> {
+    return this.db.createInventoryItem(item);
+  }
+
+  async updateInventoryItem(id: string, item: InventoryItem): Promise<void> {
+    this.db.updateInventoryItem(id, item);
+  }
+
+  async deleteInventoryItem(id: string): Promise<void> {
+    this.db.deleteInventoryItem(id);
+  }
+
   // --- Change notifications ---
 
   onRecipesChange(cb: () => void): void {
@@ -105,5 +128,9 @@ export class WasmBackend implements DataBackend {
 
   onEquipmentChange(cb: () => void): void {
     this.db.onEquipmentChange(cb);
+  }
+
+  onInventoryChange(cb: () => void): void {
+    this.db.onInventoryChange(cb);
   }
 }

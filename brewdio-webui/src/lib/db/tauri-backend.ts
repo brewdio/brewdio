@@ -1,5 +1,5 @@
-import type { EquipmentType, RecipeType, EquipmentProfile } from "brewdio-wasm";
-import type { DataBackend, Recipe, Batch, SettingsDocument } from "./backend";
+import type { EquipmentType, RecipeType, EquipmentProfile, InventoryItem } from "brewdio-wasm";
+import type { DataBackend, Recipe, Batch, SettingsDocument, InventoryDeductionPlan } from "./backend";
 
 // Lazy-load Tauri APIs to avoid errors when not in Tauri environment
 async function getInvoke() {
@@ -21,6 +21,7 @@ export class TauriBackend implements DataBackend {
   private batchesCallbacks: Set<() => void> = new Set();
   private settingsCallbacks: Set<() => void> = new Set();
   private equipmentCallbacks: Set<() => void> = new Set();
+  private inventoryCallbacks: Set<() => void> = new Set();
 
   constructor() {
     this.setupListeners();
@@ -41,6 +42,9 @@ export class TauriBackend implements DataBackend {
           break;
         case "equipment":
           this.equipmentCallbacks.forEach((cb) => cb());
+          break;
+        case "inventory":
+          this.inventoryCallbacks.forEach((cb) => cb());
           break;
       }
     });
@@ -90,9 +94,9 @@ export class TauriBackend implements DataBackend {
     return invoke<Batch | null>("get_batch", { id });
   }
 
-  async createBatch(name: string, recipeId: string, data: unknown): Promise<string> {
+  async createBatch(name: string, recipeId: string, data: unknown, inventoryPlan: InventoryDeductionPlan): Promise<string> {
     const invoke = await getInvoke();
-    return invoke<string>("create_batch", { name, recipeId, data });
+    return invoke<string>("create_batch", { name, recipeId, data, inventoryPlan });
   }
 
   async updateBatch(id: string, name: string, data: unknown): Promise<void> {
@@ -100,9 +104,9 @@ export class TauriBackend implements DataBackend {
     await invoke("update_batch", { id, name, data });
   }
 
-  async deleteBatch(id: string): Promise<void> {
+  async deleteBatch(id: string, updatedAt: string): Promise<void> {
     const invoke = await getInvoke();
-    await invoke("delete_batch", { id });
+    await invoke("delete_batch", { id, updatedAt });
   }
 
   // --- Settings ---
@@ -139,6 +143,33 @@ export class TauriBackend implements DataBackend {
     await invoke("delete_equipment_profile", { id });
   }
 
+  // --- Inventory ---
+
+  async listInventoryItems(): Promise<InventoryItem[]> {
+    const invoke = await getInvoke();
+    return invoke<InventoryItem[]>("list_inventory_items");
+  }
+
+  async getInventoryItem(id: string): Promise<InventoryItem | null> {
+    const invoke = await getInvoke();
+    return invoke<InventoryItem | null>("get_inventory_item", { id });
+  }
+
+  async createInventoryItem(item: InventoryItem): Promise<string> {
+    const invoke = await getInvoke();
+    return invoke<string>("create_inventory_item", { item });
+  }
+
+  async updateInventoryItem(id: string, item: InventoryItem): Promise<void> {
+    const invoke = await getInvoke();
+    await invoke("update_inventory_item", { id, item });
+  }
+
+  async deleteInventoryItem(id: string): Promise<void> {
+    const invoke = await getInvoke();
+    await invoke("delete_inventory_item", { id });
+  }
+
   // --- Change notifications ---
 
   onRecipesChange(cb: () => void): void {
@@ -155,5 +186,9 @@ export class TauriBackend implements DataBackend {
 
   onEquipmentChange(cb: () => void): void {
     this.equipmentCallbacks.add(cb);
+  }
+
+  onInventoryChange(cb: () => void): void {
+    this.inventoryCallbacks.add(cb);
   }
 }

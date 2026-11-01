@@ -89,20 +89,22 @@ async fn run_sync(
         }
     };
 
-    let (client_recipe_ids, client_batch_ids, client_settings_ids, client_equipment_profile_ids) = match client_hello {
+    let (client_recipe_ids, client_batch_ids, client_settings_ids, client_equipment_profile_ids, client_inventory_item_ids) = match client_hello {
         SyncMessage::Hello {
             recipe_ids,
             batch_ids,
             settings_ids,
             equipment_profile_ids,
+            inventory_item_ids,
             schema_version,
         } => {
             eprintln!(
-                "[server] received Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), schema_version={}",
+                "[server] received Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), {} inventory item(s), schema_version={}",
                 recipe_ids.len(),
                 batch_ids.len(),
                 settings_ids.len(),
                 equipment_profile_ids.len(),
+                inventory_item_ids.len(),
                 schema_version,
             );
 
@@ -131,6 +133,7 @@ async fn run_sync(
                 batch_ids.into_iter().collect::<HashSet<_>>(),
                 settings_ids.into_iter().collect::<HashSet<_>>(),
                 equipment_profile_ids.into_iter().collect::<HashSet<_>>(),
+                inventory_item_ids.into_iter().collect::<HashSet<_>>(),
             )
         }
         _ => return Err("Expected Hello from client".into()),
@@ -143,27 +146,30 @@ async fn run_sync(
     }
 
     // --- Send server Hello ---
-    let (local_recipe_ids, local_batch_ids, local_settings_ids, local_equipment_profile_ids) = {
+    let (local_recipe_ids, local_batch_ids, local_settings_ids, local_equipment_profile_ids, local_inventory_item_ids) = {
         let c = conn.lock().unwrap_or_else(|e| e.into_inner());
         (
             db::list_all_doc_ids(&*c, DocType::Recipe)?,
             db::list_all_doc_ids(&*c, DocType::Batch)?,
             db::list_all_doc_ids(&*c, DocType::Settings)?,
             db::list_all_doc_ids(&*c, DocType::EquipmentProfile)?,
+            db::list_all_doc_ids(&*c, DocType::InventoryItem)?,
         )
     };
     eprintln!(
-        "[server] sending Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s)",
+        "[server] sending Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), {} inventory item(s)",
         local_recipe_ids.len(),
         local_batch_ids.len(),
         local_settings_ids.len(),
-        local_equipment_profile_ids.len()
+        local_equipment_profile_ids.len(),
+        local_inventory_item_ids.len()
     );
     let hello = SyncMessage::Hello {
         recipe_ids: local_recipe_ids.clone(),
         batch_ids: local_batch_ids.clone(),
         settings_ids: local_settings_ids.clone(),
         equipment_profile_ids: local_equipment_profile_ids.clone(),
+        inventory_item_ids: local_inventory_item_ids.clone(),
         schema_version: SCHEMA_VERSION,
     };
     ws_tx
@@ -171,11 +177,12 @@ async fn run_sync(
         .await?;
 
     // Send NewDoc for server-only docs and initiate sync for shared docs
-    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 4] = [
+    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 5] = [
         (DocType::Recipe, local_recipe_ids.into_iter().collect(), &client_recipe_ids),
         (DocType::Batch, local_batch_ids.into_iter().collect(), &client_batch_ids),
         (DocType::Settings, local_settings_ids.into_iter().collect(), &client_settings_ids),
         (DocType::EquipmentProfile, local_equipment_profile_ids.into_iter().collect(), &client_equipment_profile_ids),
+        (DocType::InventoryItem, local_inventory_item_ids.into_iter().collect(), &client_inventory_item_ids),
     ];
 
     for (doc_type, local_ids, client_ids) in &local_sets {
