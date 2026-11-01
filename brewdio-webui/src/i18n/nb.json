@@ -186,7 +186,14 @@
     "deleteProfileDescription": "Er du sikker på at du vil slette {{profileName}}? Dette kan ikke angres.",
     "profileCreateFailed": "Utstyrsprofilen kunne ikke opprettes.",
     "profileSaveFailed": "Utstyrsprofilen kunne ikke lagres.",
-    "profileDeleteFailed": "Utstyrsprofilen kunne ikke slettes."
+    "profileDeleteFailed": "Utstyrsprofilen kunne ikke slettes.",
+    "strikeWater": "Innmeskingsvann",
+    "spargeWater": "Skyllevann",
+    "totalWater": "Totalt vann",
+    "estimatedMashVolume": "Beregnet meskevolum",
+    "grainVolume": "Kornvolum: {{value}} {{unit}}",
+    "mashCapacityExceeded": "Kornet alene overstiger meskekapasiteten",
+    "maximumVolume": "Maksimalt volum"
   },
   "batches": {
     "title": "Brygg",

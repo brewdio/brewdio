@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { gallonsToUnit, type DisplayVolumeUnit } from '@/lib/volume-units';
 
 // --- Types ---
@@ -19,6 +20,11 @@ interface BreweryVisualizationProps {
   stages: CalculatedStage[];
   beerColor: string;
   totalWaterNeeded: number;
+  strikeWater: number;
+  spargeWater: number;
+  grainVolume: number;
+  mashVolume: number;
+  mashCapacity: number;
   volumeUnit: DisplayVolumeUnit;
   selectedStageId?: string | null;
   onBeerColorChange?: (color: string) => void;
@@ -78,13 +84,20 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
   stages,
   beerColor,
   totalWaterNeeded,
+  strikeWater,
+  spargeWater,
+  grainVolume,
+  mashVolume,
+  mashCapacity,
   volumeUnit,
   selectedStageId,
   onBeerColorChange,
   onStageSelect
 }) => {
+  const { t } = useTranslation();
   // Find the maximum loss for normalization
   const maxLoss = Math.max(...stages.map(s => s.totalLoss), 0.1); // Min 0.1 to avoid division by zero
+  const mashCapacityExceeded = grainVolume > mashCapacity;
 
   return (
     <div className="relative bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -103,15 +116,56 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
         </div>
       )}
 
-      {/* Total Start Volume - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-10">
+      {/* Water split - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-10 flex gap-5 rounded-lg border border-slate-700 bg-slate-900/85 px-4 py-2 backdrop-blur-sm">
         <div className="text-right">
-          <div className="text-2xl font-black text-blue-400 tabular-nums">
-            {gallonsToUnit(totalWaterNeeded, volumeUnit).toFixed(2)}{" "}
-            <span className="text-sm text-slate-400">{volumeUnit}</span>
+          <div className="text-lg font-black text-cyan-400 tabular-nums">
+            {gallonsToUnit(strikeWater, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
           </div>
-          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Total Start Volume</div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.strikeWater")}
+          </div>
         </div>
+        <div className="text-right">
+          <div className="text-lg font-black text-sky-400 tabular-nums">
+            {gallonsToUnit(spargeWater, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
+          </div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.spargeWater")}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-black text-blue-400 tabular-nums">
+            {gallonsToUnit(totalWaterNeeded, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
+          </div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.totalWater")}
+          </div>
+        </div>
+      </div>
+
+      {/* Mash capacity - Top Right */}
+      <div className="absolute right-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900/85 px-3 py-2 text-right backdrop-blur-sm">
+        <div className={`text-sm font-bold tabular-nums ${mashCapacityExceeded ? "text-red-400" : "text-emerald-400"}`}>
+          {gallonsToUnit(mashVolume, volumeUnit).toFixed(2)} / {gallonsToUnit(mashCapacity, volumeUnit).toFixed(2)} {volumeUnit}
+        </div>
+        <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          {t("brewery.estimatedMashVolume")}
+        </div>
+        <div className="text-[9px] text-slate-500">
+          {t("brewery.grainVolume", {
+            value: gallonsToUnit(grainVolume, volumeUnit).toFixed(2),
+            unit: volumeUnit,
+          })}
+        </div>
+        {mashCapacityExceeded && (
+          <div className="mt-1 text-[9px] font-bold text-red-400">
+            {t("brewery.mashCapacityExceeded")}
+          </div>
+        )}
       </div>
 
       {/* Visualization */}

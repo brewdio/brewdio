@@ -186,7 +186,14 @@
     "deleteProfileDescription": "Are you sure you want to delete {{profileName}}? This action cannot be undone.",
     "profileCreateFailed": "The equipment profile could not be created.",
     "profileSaveFailed": "The equipment profile could not be saved.",
-    "profileDeleteFailed": "The equipment profile could not be deleted."
+    "profileDeleteFailed": "The equipment profile could not be deleted.",
+    "strikeWater": "Strike water",
+    "spargeWater": "Sparge water",
+    "totalWater": "Total water",
+    "estimatedMashVolume": "Estimated mash volume",
+    "grainVolume": "Grain volume: {{value}} {{unit}}",
+    "mashCapacityExceeded": "The grain alone exceeds the mash capacity",
+    "maximumVolume": "Maximum volume"
   },
   "batches": {
     "title": "Batches",

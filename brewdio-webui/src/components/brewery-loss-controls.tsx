@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -8,7 +9,7 @@ import { Pencil, Check, X } from "lucide-react";
 import type { CalculatedStage } from "@/components/brewery-visualization";
 import type { EquipmentItemType } from "brewdio-wasm";
 import { specificVolumeToGallonsPerKilogram, volumeToGallons } from "brewdio-wasm";
-import { gallonsToUnit, type DisplayVolumeUnit } from "@/lib/volume-units";
+import { gallonsToUnit, unitToGallons, type DisplayVolumeUnit } from "@/lib/volume-units";
 
 // Export CalculatedStage type from brewery-visualization to avoid duplication
 export type { CalculatedStage };
@@ -29,6 +30,7 @@ interface BreweryLossControlsProps {
   onLossChange: (stageIndex: number, newLossValue: number) => void;
   onGrainAbsorptionChange?: (stageIndex: number, newRate: number) => void;
   onBoilRateChange?: (stageIndex: number, newRate: number) => void;
+  onMaximumVolumeChange?: (stageIndex: number, newVolume: number) => void;
   onNameChange: (stageIndex: number, newName: string) => void;
   readOnly?: boolean;
   volumeUnit: DisplayVolumeUnit;
@@ -42,10 +44,12 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
   onLossChange,
   onGrainAbsorptionChange,
   onBoilRateChange,
+  onMaximumVolumeChange,
   onNameChange,
   readOnly = false,
   volumeUnit,
 }) => {
+  const { t } = useTranslation();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
 
@@ -81,6 +85,9 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
 
   const currentLossValue = stage.equipmentItem
     ? volumeToGallons(stage.equipmentItem.loss)
+    : 0;
+  const maximumVolumeGallons = stage.equipmentItem
+    ? volumeToGallons(stage.equipmentItem.maximum_volume)
     : 0;
 
   // Calculate individual loss contributions
@@ -155,6 +162,35 @@ export const BreweryLossControls: React.FC<BreweryLossControlsProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Maximum equipment volume */}
+          {stage.equipmentItem && onMaximumVolumeChange && (
+            <div className="space-y-2">
+              <Label htmlFor={`maximum-volume-${stage.id}`} className="text-sm">
+                {t("brewery.maximumVolume")}
+              </Label>
+              <div className="relative">
+                <Input
+                  id={`maximum-volume-${stage.id}`}
+                  type="number"
+                  value={Number(gallonsToUnit(maximumVolumeGallons, volumeUnit).toFixed(2))}
+                  onChange={(event) =>
+                    onMaximumVolumeChange(
+                      stageIndex,
+                      unitToGallons(Number(event.target.value), volumeUnit)
+                    )
+                  }
+                  step="0.1"
+                  min="0"
+                  disabled={readOnly}
+                  className="pr-12"
+                />
+                <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">
+                  {volumeUnit}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Grain Absorption Rate Slider */}
           {stage.equipmentItem?.grain_absorption_rate && onGrainAbsorptionChange && (
             <div className="space-y-2">

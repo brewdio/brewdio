@@ -54,8 +54,15 @@ export const Route = createFileRoute("/brewery")({
 
 interface CalculationResult {
   totalWaterNeeded: number;
+  strikeWater: number;
+  spargeWater: number;
+  grainVolume: number;
+  mashVolume: number;
+  mashCapacity: number;
   stages: CalculatedStage[];
 }
+
+const GRAIN_DISPLACEMENT_LITERS_PER_KILOGRAM = 0.652;
 
 /**
  * Map BeerJSON equipment form to visualization tank shape
@@ -154,7 +161,15 @@ function BreweryComponent() {
     const equipmentItems = editedEquipment || currentEquipment?.equipment.equipment_items;
 
     if (!equipmentItems) {
-      return { totalWaterNeeded: 0, stages: [] };
+      return {
+        totalWaterNeeded: 0,
+        strikeWater: 0,
+        spargeWater: 0,
+        grainVolume: 0,
+        mashVolume: 0,
+        mashCapacity: 0,
+        stages: [],
+      };
     }
 
     let currentVol = targetVolume;
@@ -196,10 +211,25 @@ function BreweryComponent() {
     });
 
     const orderedStages = processedStages.reverse();
+    const mashVessel = equipmentItems.find(
+      (item) => item.form === "Mash Tun" || item.form === "Lauter Tun"
+    ) ?? equipmentItems.find(
+      (item) => item.form === "Brew Kettle" && item.grain_absorption_rate
+    ) ?? equipmentItems.find((item) => item.form === "Brew Kettle");
+    const mashCapacity = mashVessel
+      ? volumeToGallons(mashVessel.maximum_volume)
+      : currentVol;
+    const grainVolume = unitToGallons(
+      grainWeight * GRAIN_DISPLACEMENT_LITERS_PER_KILOGRAM,
+      "l"
+    );
+    const maximumStrikeWater = Math.max(0, mashCapacity - grainVolume);
+    const strikeWater = Math.min(currentVol, maximumStrikeWater);
+    const spargeWater = Math.max(0, currentVol - strikeWater);
 
     const sourceTank: CalculatedStage = {
       id: "source",
-      label: "Strike Water",
+      label: t("brewery.totalWater"),
       shape: "rect",
       volumeIn: currentVol,
       volumeOut: currentVol,
@@ -210,9 +240,14 @@ function BreweryComponent() {
 
     return {
       totalWaterNeeded: currentVol,
+      strikeWater,
+      spargeWater,
+      grainVolume,
+      mashVolume: strikeWater + grainVolume,
+      mashCapacity,
       stages: [sourceTank, ...orderedStages],
     };
-  }, [editedEquipment, currentEquipment, targetVolume, boilTime, grainWeight]);
+  }, [editedEquipment, currentEquipment, targetVolume, boilTime, grainWeight, t]);
 
   // Find selected stage and its index
   const selectedStageIndex = selectedStageId
@@ -326,6 +361,23 @@ function BreweryComponent() {
       newEquipment[equipmentItemIndex] = {
         ...newEquipment[equipmentItemIndex],
         boil_rate_per_hour: { value: newRate, unit: "gal" },
+      };
+
+      setEditedEquipment(newEquipment);
+      setHasChanges(true);
+    }
+  };
+
+  const handleMaximumVolumeChange = (stageIndex: number, newVolume: number) => {
+    if (isBuiltInProfile || !editedEquipment || stageIndex <= 0) return;
+
+    const equipmentItemIndex = stageIndex - 1;
+    const newEquipment = [...editedEquipment];
+
+    if (newEquipment[equipmentItemIndex]) {
+      newEquipment[equipmentItemIndex] = {
+        ...newEquipment[equipmentItemIndex],
+        maximum_volume: { value: newVolume, unit: "gal" },
       };
 
       setEditedEquipment(newEquipment);
@@ -491,6 +543,11 @@ function BreweryComponent() {
           stages={calculationData.stages}
           beerColor={beerColor}
           totalWaterNeeded={calculationData.totalWaterNeeded}
+          strikeWater={calculationData.strikeWater}
+          spargeWater={calculationData.spargeWater}
+          grainVolume={calculationData.grainVolume}
+          mashVolume={calculationData.mashVolume}
+          mashCapacity={calculationData.mashCapacity}
           volumeUnit={displayVolumeUnit}
           selectedStageId={selectedStageId}
           onBeerColorChange={setBeerColor}
@@ -522,6 +579,7 @@ function BreweryComponent() {
           onLossChange={handleLossChange}
           onGrainAbsorptionChange={handleGrainAbsorptionChange}
           onBoilRateChange={handleBoilRateChange}
+          onMaximumVolumeChange={handleMaximumVolumeChange}
           onNameChange={handleStageNameChange}
           readOnly={isBuiltInProfile}
           volumeUnit={displayVolumeUnit}
