@@ -6,6 +6,30 @@ brewdio is a modern, privacy-focused brewing companion that puts you in control 
 
 ---
 
+## About This Fork
+
+This repository is an independent, self-hosted continuation of the original
+[brewdio project](https://github.com/brewdio/brewdio). It keeps the local-first
+foundation while adding inventory management, Norwegian localization, authenticated
+sync, and integration APIs for a connected brewery workflow.
+
+The upstream project and this fork may evolve independently. Changes specific to this
+repository are maintained by [sammynorway](https://github.com/sammynorway).
+
+### What This Fork Adds
+
+| Area | Original project | This repository |
+|------|------------------|-----------------|
+| Languages | English interface | English and Norwegian, with browser-language detection and a manual selector |
+| Ingredients | Built-in ingredient reference data | Personal inventory with quantities, best-before dates, recipe selection, and shortage previews |
+| Water planning | Equipment-aware total water calculation | Capacity-aware strike and sparge split that accounts for kettle size and grain displacement |
+| Batch lifecycle | Recipe-based batch tracking | Optional inventory deduction when a batch starts and restoration when that batch is deleted |
+| Synchronization | Optional unauthenticated relay | Self-hosted authentication, persistent user accounts, and user-isolated synchronized data |
+| Integrations | No external brewing-system API | Revocable integration keys plus Recipe and Batch APIs |
+| CraftBeerPi | No dedicated integration | Separate [CraftBeerPi 4 plugin](https://github.com/sammynorway/brewdio-craftbeerpi-plugin) for recipe selection and brew-start reporting |
+
+---
+
 ## Features
 
 ### Recipe Management
@@ -16,7 +40,7 @@ brewdio is a modern, privacy-focused brewing companion that puts you in control 
 - **Equipment Profiles** — Customize loss calculations for your specific mash tun, kettle, and fermenter
 
 ### Batch Tracking
-- **Brew Day Companion** — Read-only batch views perfect for following along during brewing
+- **Brew Day Companion** — Create batches from recipes and follow them throughout the brew day
 - **Water Calculator** — Visual water requirement calculator with equipment-specific adjustments
 - **Capacity-Aware Mash Water** — Splits strike and sparge water while respecting kettle capacity and grain displacement
 - **Inventory-Aware Batches** — Deduct ingredients when a batch is created and restore them when that batch is deleted
@@ -193,13 +217,60 @@ cargo run -p brewdio-tui
 cargo run -p brewdio-server
 ```
 
+### Self-Hosted Sync Server
+
+The server is optional for local recipe work. It is required for authenticated
+multi-device synchronization and external integrations such as CraftBeerPi.
+
+For a persistent installation, set a stable JWT secret before starting the server.
+If the secret is omitted, the server generates a temporary one and all login tokens
+become invalid after a restart.
+
+```bash
+export BREWDIO_JWT_SECRET="replace-with-a-long-random-secret"
+export BREWDIO_DB="/path/to/brewdio.db"
+export PORT="3000"
+cargo run -p brewdio-server --release
+```
+
+In the web interface:
+
+1. Open **Settings → Synchronization**.
+2. Enter the WebSocket address, for example `ws://192.168.1.100:3000/ws`.
+3. Select **Sign in / Create account** and authenticate against that server.
+4. Connect synchronization after a successful sign-in.
+
+Use HTTPS/WSS through a reverse proxy when the server is reachable outside a trusted
+local network. The `--no-auth` option is intended only for isolated development and
+testing.
+
 ### Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BREWDIO_DB` | `brewdio.db` | Path to the SQLite database (server & TUI) |
 | `BREWDIO_SERVER_URL` | — | WebSocket server URL for TUI sync (e.g. `ws://localhost:3000/ws`) |
+| `BREWDIO_JWT_SECRET` | Random per start | Secret used to sign login tokens; set a stable, private value in production |
+| `BREWDIO_ALLOW_SIGNUPS` | `true` | Set to `false` or `0` to disable new account registration |
+| `BREWDIO_ADMIN_EMAIL` | — | Optional administrator account created or updated at server startup |
+| `BREWDIO_ADMIN_PASSWORD` | — | Password for the optional administrator account; use together with `BREWDIO_ADMIN_EMAIL` |
+| `BREWDIO_GOOGLE_CLIENT_ID` | — | Optional Google client ID for Google sign-in |
 | `PORT` | `3000` | Port for the sync server |
+
+### Integration API and CraftBeerPi
+
+Integration keys are created from Brewdio after signing in. They are separate from
+account passwords, can be revoked, and currently receive the `recipes:read` and
+`batches:write` scopes required by the CraftBeerPi plugin.
+
+The plugin is maintained and released separately:
+
+- [sammynorway/brewdio-craftbeerpi-plugin](https://github.com/sammynorway/brewdio-craftbeerpi-plugin)
+
+CraftBeerPi uses the Recipe API to list Brewdio recipes. When a selected recipe starts
+brewing, the plugin creates the corresponding Brewdio batch through the Batch API.
+Brewdio then calculates and records the inventory deductions, keeping the inventory
+logic in one system.
 
 ### AI Assistant Configuration
 
@@ -269,7 +340,10 @@ brewdio uses [BeerJSON](https://beerjson.org/) as its native recipe format. This
 
 ## Contributing
 
-brewdio is a work in progress! Contributions are welcome.
+This fork is developed independently from upstream. Contributions and issue reports
+for the features in this repository are welcome here. Contributions intended for the
+original project should be directed to
+[brewdio/brewdio](https://github.com/brewdio/brewdio).
 
 ---
 
@@ -281,6 +355,7 @@ This project is open source. Check the LICENSE file for details.
 
 ## Acknowledgments
 
+- **[brewdio/brewdio](https://github.com/brewdio/brewdio)** — The original project and local-first foundation for this fork
 - **[BeerJSON](https://beerjson.org/)** — For providing an excellent standard format
 - **[Automerge](https://automerge.org/)** — For making local-first CRDT sync practical
 - **Brewing Community** — For sharing formulas and best practices
