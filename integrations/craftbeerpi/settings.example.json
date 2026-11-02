@@ -1,7 +1,0 @@
-{
-  "base_url": "http://127.0.0.1:3000",
-  "api_key": "",
-  "kettle_id": "CRAFTBEERPI_KETTLE_ID",
-  "sensor_id": "CRAFTBEERPI_SENSOR_ID",
-  "sync_interval_seconds": 60
-}
