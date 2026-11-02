@@ -110,6 +110,7 @@ pub fn start_sync(db: &AppDb, server_url: &str, on_status: js_sys::Function) {
     let on_batches_change = db.on_batches_change.clone();
     let on_settings_change = db.on_settings_change.clone();
     let on_equipment_change = db.on_equipment_change.clone();
+    let on_inventory_change = db.on_inventory_change.clone();
     let on_status_fn = on_status;
 
     let (handle, reg) = AbortHandle::new_pair();
@@ -123,6 +124,7 @@ pub fn start_sync(db: &AppDb, server_url: &str, on_status: js_sys::Function) {
                     let on_batches = on_batches_change.clone();
                     let on_settings = on_settings_change.clone();
                     let on_equipment = on_equipment_change.clone();
+                    let on_inventory = on_inventory_change.clone();
                     let on_status_ref = on_status_fn.clone();
 
                     let result = run_sync(
@@ -151,6 +153,7 @@ pub fn start_sync(db: &AppDb, server_url: &str, on_status: js_sys::Function) {
                                 DocType::Batch => &on_batches,
                                 DocType::Settings => &on_settings,
                                 DocType::EquipmentProfile => &on_equipment,
+                                DocType::InventoryItem => &on_inventory,
                             };
                             if let Some(f) = cb {
                                 let _ = f.call0(&JsValue::NULL);

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Home,
   Settings2,
@@ -11,6 +12,7 @@ import {
   Droplets,
   BookOpen,
   Search,
+  Boxes,
 } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useBatches } from "@/lib/db/batches";
@@ -40,17 +42,22 @@ import { getVersion } from "brewdio-wasm";
 // Static navigation items
 const staticNavItems = [
   {
-    title: "Home",
+    titleKey: "navigation.home",
     url: "/",
     icon: Home,
   },
   {
-    title: "Brewery",
+    titleKey: "navigation.brewery",
     url: "/brewery",
     icon: Beaker,
   },
   {
-    title: "Settings",
+    titleKey: "navigation.inventory",
+    url: "/inventory",
+    icon: Boxes,
+  },
+  {
+    titleKey: "common.settings",
     url: "/settings",
     icon: Settings2,
   },
@@ -59,17 +66,17 @@ const staticNavItems = [
 // Context-dependent navigation for recipe view
 const recipeContextNav = [
   {
-    title: "Fermentables",
+    titleKey: "recipes.fermentables",
     url: "#fermentables",
     icon: Wheat,
   },
   {
-    title: "Hops",
+    titleKey: "recipes.hops",
     url: "#hops",
     icon: Leaf,
   },
   {
-    title: "Cultures (Yeast)",
+    titleKey: "recipes.cultures",
     url: "#cultures",
     icon: FlaskConical,
   },
@@ -93,6 +100,8 @@ function RecipeMenuItems({
   showJsonEditor = true,
   showBatches = true,
 }: RecipeMenuItemsProps) {
+  const { t } = useTranslation();
+
   return (
     <>
       <Separator className="my-2" />
@@ -102,10 +111,10 @@ function RecipeMenuItems({
           {/* Recipe Overview */}
           {showRecipeOverview && (
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Recipe Overview" asChild>
+              <SidebarMenuButton tooltip={t("recipes.overview")} asChild>
                 <Link to={baseRoute} params={params}>
                   <Home />
-                  <span>Recipe Overview</span>
+                  <span>{t("recipes.overview")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -113,11 +122,11 @@ function RecipeMenuItems({
 
           {/* Recipe Sections */}
           {recipeContextNav.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title} asChild>
+            <SidebarMenuItem key={item.titleKey}>
+              <SidebarMenuButton tooltip={t(item.titleKey)} asChild>
                 <Link to={baseRoute} params={params} hash={item.url}>
                   <item.icon />
-                  <span>{item.title}</span>
+                  <span>{t(item.titleKey)}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -125,20 +134,20 @@ function RecipeMenuItems({
 
           {/* Mash */}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Mash" asChild>
+            <SidebarMenuButton tooltip={t("recipes.mash")} asChild>
               <Link to={`${baseRoute}/mash` as string} params={params}>
                 <Flame />
-                <span>Mash</span>
+                <span>{t("recipes.mash")}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           {/* Water */}
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Water" asChild>
+            <SidebarMenuButton tooltip={t("recipes.water")} asChild>
               <Link to={`${baseRoute}/water` as string} params={params}>
                 <Droplets />
-                <span>Water</span>
+                <span>{t("recipes.water")}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -146,10 +155,10 @@ function RecipeMenuItems({
           {/* Batches - Only show in recipe mode */}
           {showBatches && (
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Batches" asChild>
+              <SidebarMenuButton tooltip={t("batches.title")} asChild>
                 <Link to={`${baseRoute}/batches` as string} params={params}>
                   <Beaker />
-                  <span>Batches</span>
+                  <span>{t("batches.title")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -158,10 +167,10 @@ function RecipeMenuItems({
           {/* JSON Editor */}
           {showJsonEditor && (
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="JSON Editor" asChild>
+              <SidebarMenuButton tooltip={t("recipes.jsonEditor")} asChild>
                 <Link to={`${baseRoute}/json` as string} params={params}>
                   <Code />
-                  <span>JSON Editor</span>
+                  <span>{t("recipes.jsonEditor")}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -173,6 +182,7 @@ function RecipeMenuItems({
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation();
   const isMac = useIsMac();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -181,6 +191,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isBatchView = router.location.pathname.startsWith("/batches/");
   const { data: recipesData } = useRecipes();
   const { data: batchesData } = useBatches();
+
+  const translatedNavItems = staticNavItems.map((item) => ({
+    ...item,
+    title: t(item.titleKey),
+  }));
 
   // Extract recipe ID from pathname
   const recipeId = React.useMemo(() => {
@@ -227,7 +242,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {/* Static Navigation */}
-        <NavMain items={staticNavItems} />
+        <NavMain items={translatedNavItems} />
 
         {/* Context-dependent sections for Batch View */}
         {isBatchView && batchId && currentBatch && (
@@ -256,12 +271,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              tooltip="Search"
+              tooltip={t("common.search")}
               onClick={() => executeCommand("palette.open")}
               className="text-muted-foreground"
             >
               <Search className="h-4 w-4" />
-              <span>Search</span>
+              <span>{t("common.search")}</span>
               <kbd className="ml-auto inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground pointer-events-none group-data-[collapsible=icon]:hidden">
                 {isMac ? "\u2318" : "Ctrl+"}K
               </kbd>
@@ -274,10 +289,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <ThemeToggle />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Docs" asChild>
+            <SidebarMenuButton tooltip={t("navigation.docs")} asChild>
               <a href="https://docs.brewdio.beer" target="_blank" rel="noopener noreferrer">
                 <BookOpen />
-                <span>Docs</span>
+                <span>{t("navigation.docs")}</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

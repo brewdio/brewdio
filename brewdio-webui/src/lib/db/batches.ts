@@ -1,7 +1,7 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { getBackend } from './app-db';
 import { batchKeys } from './query-keys';
-import type { Batch, BatchData } from './backend';
+import type { Batch, BatchData, InventoryDeductionPlan } from './backend';
 
 export { batchKeys };
 
@@ -23,6 +23,8 @@ export interface BatchDocument {
   notes?: string;
   createdAt: number;
   updatedAt: number;
+  inventoryDeductions?: BatchData['inventoryDeductions'];
+  inventoryShortages?: BatchData['inventoryShortages'];
 }
 
 function batchToBatchDoc(b: Batch): BatchDocument {
@@ -37,6 +39,8 @@ function batchToBatchDoc(b: Batch): BatchDocument {
     notes: b.data.notes,
     createdAt: b.data.createdAt,
     updatedAt: b.data.updatedAt,
+    inventoryDeductions: b.data.inventoryDeductions,
+    inventoryShortages: b.data.inventoryShortages,
   };
 }
 
@@ -49,6 +53,8 @@ function batchDocToData(doc: Omit<BatchDocument, 'id' | 'name' | 'recipeId'>) {
     notes: doc.notes,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
+    inventoryDeductions: doc.inventoryDeductions ?? [],
+    inventoryShortages: doc.inventoryShortages ?? [],
   };
 }
 
@@ -84,8 +90,9 @@ export async function createBatchImperative(
   name: string,
   recipeId: string,
   data: Omit<BatchDocument, 'id' | 'name' | 'recipeId'>,
+  inventoryPlan: InventoryDeductionPlan,
 ): Promise<string> {
-  return getBackend().createBatch(name, recipeId, batchDocToData(data));
+  return getBackend().createBatch(name, recipeId, batchDocToData(data), inventoryPlan);
 }
 
 export async function updateBatchImperative(
@@ -97,7 +104,7 @@ export async function updateBatchImperative(
 }
 
 export async function deleteBatchImperative(id: string): Promise<void> {
-  return getBackend().deleteBatch(id);
+  return getBackend().deleteBatch(id, new Date().toISOString());
 }
 
 export async function listBatchesImperative(): Promise<BatchDocument[]> {

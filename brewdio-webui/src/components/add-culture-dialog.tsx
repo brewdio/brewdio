@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useRecipeEdit } from "@/contexts/recipe-edit-context";
 import type { CultureAdditionType, UnitUnitType } from "brewdio-wasm";
@@ -23,6 +23,9 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
 import { getCultures } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
+import { useInventoryItems } from "@/lib/db/inventory";
+import { buildIngredientCatalog, findCatalogKey } from "@/lib/inventory-catalog";
 
 interface AddCultureDialogProps {
   existingCulture?: CultureAdditionType;
@@ -41,21 +44,28 @@ export function AddCultureDialog({
   open: controlledOpen,
   onOpenChange,
 }: AddCultureDialogProps) {
+  const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const { update } = useRecipeEdit();
+  const { data: inventoryItems = [] } = useInventoryItems();
   const isEditing = existingCulture !== undefined && index !== undefined;
+  const cultureCatalog = useMemo(
+    () => buildIngredientCatalog(getCultures(), inventoryItems, "culture"),
+    [inventoryItems]
+  );
 
   const form = useForm({
     defaultValues: {
-      cultureName: existingCulture?.name || "",
+      cultureName: findCatalogKey(cultureCatalog, existingCulture?.name),
       amount: existingCulture?.amount?.value.toString() || "1",
       unit: (existingCulture?.amount?.unit || "pkg") as UnitUnitType,
     },
     onSubmit: async ({ value }) => {
-      // Find the selected culture from the cultures data
-      const selectedCulture = getCultures().find((c) => c.name === value.cultureName);
+      const selectedCulture = cultureCatalog.find(
+        (entry) => entry.key === value.cultureName
+      )?.ingredient;
 
       if (!selectedCulture) {
         return;
@@ -97,6 +107,12 @@ export function AddCultureDialog({
     },
   });
 
+  useEffect(() => {
+    if (!existingCulture) return;
+    const key = findCatalogKey(cultureCatalog, existingCulture.name);
+    if (key) form.setFieldValue("cultureName", key);
+  }, [cultureCatalog, existingCulture, form]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {controlledOpen === undefined && (
@@ -104,18 +120,22 @@ export function AddCultureDialog({
           {trigger || (
             <Button size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
-              Add Culture
+              {t("ingredients.culture.add")}
             </Button>
           )}
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit Culture (Yeast)" : "Add Culture (Yeast)"}</DialogTitle>
+          <DialogTitle>
+            {isEditing
+              ? t("ingredients.culture.edit")
+              : t("ingredients.culture.addTitle")}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? "Update the culture details."
-              : "Select a yeast culture and specify the amount to add to your recipe."}
+              ? t("ingredients.culture.editDescription")
+              : t("ingredients.culture.addDescription")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -130,22 +150,26 @@ export function AddCultureDialog({
             name="cultureName"
             validators={{
               onChange: ({ value }) =>
-                !value ? "Culture selection is required" : undefined,
+                !value ? t("ingredients.culture.selectionRequired") : undefined,
             }}
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Yeast Culture</Label>
+                <Label htmlFor={field.name}>{t("ingredients.culture.label")}</Label>
                 <Combobox
-                  options={getCultures().map((c) => ({
-                    value: c.name,
-                    label: `${c.name} (${c.type})`,
+                  options={cultureCatalog.map((entry) => ({
+                    value: entry.key,
+                    label: `${entry.ingredient.name} (${entry.ingredient.type})${
+                      entry.stock
+                        ? ` — ${t("ingredients.inStock", { stock: entry.stock })}`
+                        : ""
+                    }`,
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}
-                  placeholder="Select a culture"
-                  searchPlaceholder="Search cultures..."
-                  emptyText="No culture found."
+                  placeholder={t("ingredients.culture.select")}
+                  searchPlaceholder={t("ingredients.culture.search")}
+                  emptyText={t("ingredients.culture.notFound")}
                 />
                 {field.state.meta.errors && (
                   <p className="text-sm text-destructive">
@@ -163,7 +187,7 @@ export function AddCultureDialog({
                 onChange: ({ value }) => {
                   const num = parseFloat(value);
                   if (isNaN(num) || num <= 0) {
-                    return "Amount must be a positive number";
+                    return t("ingredients.amountPositive");
                   }
                   return undefined;
                 },
@@ -171,7 +195,7 @@ export function AddCultureDialog({
             >
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Amount</Label>
+                  <Label htmlFor={field.name}>{t("common.amount")}</Label>
                   <Input
                     id={field.name}
                     type="number"
@@ -194,7 +218,7 @@ export function AddCultureDialog({
             <form.Field name="unit">
               {(field) => (
                 <div className="space-y-2">
-                  <Label htmlFor={field.name}>Unit</Label>
+                  <Label htmlFor={field.name}>{t("common.unit")}</Label>
                   <Select
                     value={field.state.value}
                     onValueChange={(v) => field.handleChange(v as typeof field.state.value)}
@@ -221,7 +245,7 @@ export function AddCultureDialog({
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <form.Subscribe
               selector={(state) => [state.canSubmit, state.isSubmitting]}
@@ -230,11 +254,11 @@ export function AddCultureDialog({
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
                   {isSubmitting
                     ? isEditing
-                      ? "Updating..."
-                      : "Adding..."
+                      ? t("common.updating")
+                      : t("common.adding")
                     : isEditing
-                    ? "Update Culture"
-                    : "Add Culture"}
+                    ? t("ingredients.culture.update")
+                    : t("ingredients.culture.add")}
                 </Button>
               )}
             </form.Subscribe>

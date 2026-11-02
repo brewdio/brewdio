@@ -7,7 +7,9 @@ import { initBackend, registerChangeCallback } from "@/lib/db/app-db";
 import { WasmBackend } from "@/lib/db/wasm-backend";
 import { setAppDb } from "@/lib/db/wasm-app-db";
 import { startSync } from "@/lib/sync";
+import { Toaster } from "sonner";
 import "./index.css";
+import "./i18n";
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
@@ -63,6 +65,7 @@ async function init() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
+        <Toaster richColors position="bottom-right" />
       </QueryClientProvider>
     </StrictMode>
   );

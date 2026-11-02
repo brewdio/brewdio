@@ -3,12 +3,14 @@ import { useBatches } from "@/lib/db/batches";
 import { useRecipe } from "@/lib/db/recipes";
 import { Beaker, Calendar, ExternalLink } from "lucide-react";
 import { DeleteBatchDialog } from "@/components/delete-batch-dialog";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/recipes/$recipeId_/batches")({
   component: RecipeBatchesComponent,
 });
 
 function RecipeBatchesComponent() {
+  const { t, i18n } = useTranslation();
   const { recipeId } = Route.useParams();
   const { data: recipe } = useRecipe(recipeId);
   const { data: batches } = useBatches();
@@ -18,33 +20,35 @@ function RecipeBatchesComponent() {
   const sortedBatches = [...recipeBatches].sort((a, b) => b.brewDate - a.brewDate);
 
   if (!recipe) {
-    return <div>Recipe not found</div>;
+    return <div>{t("recipes.notFound")}</div>;
   }
 
   // Format date helper
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(timestamp).toLocaleDateString(
+      i18n.resolvedLanguage?.startsWith("nb") ? "nb-NO" : "en-US",
+      {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-2xl font-bold mb-2">Batches</h2>
+        <h2 className="text-2xl font-bold mb-2">{t("batches.title")}</h2>
         <p className="text-sm text-muted-foreground">
-          All batches brewed from {recipe.recipe.name}
+          {t("batches.allFromRecipe", { recipeName: recipe.recipe.name })}
         </p>
       </div>
 
       {sortedBatches.length === 0 ? (
         <div className="border rounded-lg p-8 text-center">
           <Beaker className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No batches yet</h3>
+          <h3 className="text-lg font-semibold mb-2">{t("batches.noneYet")}</h3>
           <p className="text-muted-foreground mb-4">
-            You haven't brewed this recipe yet. Start by clicking the Brew button.
+            {t("batches.noneForRecipeDescription")}
           </p>
         </div>
       ) : (
@@ -64,7 +68,7 @@ function RecipeBatchesComponent() {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      <span>Brewed on {formatDate(batch.brewDate)}</span>
+                      <span>{t("batches.brewedOn", { date: formatDate(batch.brewDate) })}</span>
                     </div>
                     {batch.equipment && (
                       <span>• {batch.equipment.name}</span>
@@ -91,6 +95,7 @@ function RecipeBatchesComponent() {
                     <DeleteBatchDialog
                       batchId={batch.id}
                       batchName={batch.name}
+                      inventoryDeductions={batch.inventoryDeductions}
                       variant="destructive"
                       size="sm"
                       redirectOnDelete={false}
@@ -105,7 +110,7 @@ function RecipeBatchesComponent() {
 
       {sortedBatches.length > 0 && (
         <div className="text-sm text-muted-foreground text-center">
-          Total: {sortedBatches.length} batch{sortedBatches.length === 1 ? '' : 'es'}
+          {t("batches.total", { count: sortedBatches.length })}
         </div>
       )}
     </div>

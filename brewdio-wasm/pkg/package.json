@@ -1,7 +1,7 @@
 {
   "name": "brewdio-wasm",
   "type": "module",
-  "version": "0.5.0",
+  "version": "0.8.0",
   "files": [
     "brewdio_wasm_bg.wasm",
     "brewdio_wasm.js",

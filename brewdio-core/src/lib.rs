@@ -3,6 +3,7 @@ pub const VERSION: &str = env!("BREWDIO_VERSION");
 pub mod beerjson_types;
 pub mod data;
 pub mod equipment_profile;
+pub mod inventory;
 pub mod units;
 
 pub mod abv;

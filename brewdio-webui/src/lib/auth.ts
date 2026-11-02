@@ -13,14 +13,18 @@ export function clearToken(): void {
 }
 
 export function isAuthenticated(): boolean {
-  return getToken() !== null;
+  return !isTokenExpired();
 }
 
 /** Parse JWT payload without verifying signature (client-side only). */
 export function parseToken(token: string): { sub: string; email: string; is_admin: boolean; exp: number } | null {
   try {
     const payload = token.split(".")[1];
-    return JSON.parse(atob(payload));
+    if (!payload) return null;
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    return JSON.parse(atob(padded));
   } catch {
     return null;
   }

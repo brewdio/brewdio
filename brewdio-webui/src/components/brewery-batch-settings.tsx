@@ -1,12 +1,15 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { DisplayVolumeUnit } from "@/lib/volume-units";
 
 interface BreweryBatchSettingsProps {
   targetVolume: number;
   boilTime: number;
   grainWeight: number;
+  volumeUnit: DisplayVolumeUnit;
   onTargetVolumeChange: (value: number) => void;
   onBoilTimeChange: (value: number) => void;
   onGrainWeightChange: (value: number) => void;
@@ -16,20 +19,23 @@ export const BreweryBatchSettings: React.FC<BreweryBatchSettingsProps> = ({
   targetVolume,
   boilTime,
   grainWeight,
+  volumeUnit,
   onTargetVolumeChange,
   onBoilTimeChange,
   onGrainWeightChange
 }) => {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Batch Settings</CardTitle>
-        <CardDescription>Configure your target volume and boil parameters</CardDescription>
+        <CardTitle>{t("brewery.batchSettings")}</CardTitle>
+        <CardDescription>{t("brewery.batchSettingsDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="target-volume">Packaging Target</Label>
+            <Label htmlFor="target-volume">{t("brewery.packagingTarget")}</Label>
             <div className="relative">
               <Input
                 id="target-volume"
@@ -40,11 +46,11 @@ export const BreweryBatchSettings: React.FC<BreweryBatchSettingsProps> = ({
                 min="0"
                 className="pr-12"
               />
-              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">gal</span>
+              <span className="absolute right-3 top-2.5 text-sm text-muted-foreground">{volumeUnit}</span>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="boil-time">Boil Time</Label>
+            <Label htmlFor="boil-time">{t("brewery.boilTime")}</Label>
             <div className="relative">
               <Input
                 id="boil-time"
@@ -59,7 +65,7 @@ export const BreweryBatchSettings: React.FC<BreweryBatchSettingsProps> = ({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="grain-weight">Grain Weight</Label>
+            <Label htmlFor="grain-weight">{t("brewery.grainWeight")}</Label>
             <div className="relative">
               <Input
                 id="grain-weight"

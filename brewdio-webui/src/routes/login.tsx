@@ -4,12 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setToken, getAuthBaseUrl } from "@/lib/auth";
+import { startSync } from "@/lib/sync";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/login")({
   component: LoginComponent,
 });
 
 function LoginComponent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -35,14 +38,22 @@ function LoginComponent() {
       const data = await resp.json();
 
       if (!resp.ok) {
-        setError(data.error || "Authentication failed");
+        setError(
+          mode === "login"
+            ? t("auth.errors.loginFailed")
+            : t("auth.errors.registerFailed")
+        );
         return;
       }
 
       setToken(data.token);
-      navigate({ to: "/" });
-    } catch (err) {
-      setError("Could not connect to server. Check that the server URL is configured in Settings.");
+      const serverUrl = localStorage.getItem("brewdio_server");
+      if (serverUrl) {
+        await startSync(serverUrl);
+      }
+      navigate({ to: "/settings" });
+    } catch {
+      setError(t("auth.errors.connectionFailed"));
     } finally {
       setLoading(false);
     }
@@ -54,32 +65,32 @@ function LoginComponent() {
         <div className="space-y-2 text-center">
           <h1 className="text-2xl font-bold">brewdio</h1>
           <p className="text-sm text-muted-foreground">
-            {mode === "login" ? "Sign in to your account" : "Create a new account"}
+            {mode === "login" ? t("auth.loginDescription") : t("auth.registerDescription")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("auth.email")}</Label>
             <Input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t("auth.emailPlaceholder")}
               required
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("auth.password")}</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "register" ? "At least 8 characters" : ""}
+              placeholder={mode === "register" ? t("auth.passwordPlaceholder") : ""}
               required
               minLength={mode === "register" ? 8 : undefined}
             />
@@ -90,31 +101,31 @@ function LoginComponent() {
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "..." : mode === "login" ? "Sign In" : "Create Account"}
+            {loading ? t("auth.working") : mode === "login" ? t("auth.signIn") : t("auth.createAccount")}
           </Button>
         </form>
 
         <div className="text-center text-sm">
           {mode === "login" ? (
             <p>
-              Don't have an account?{" "}
+              {t("auth.noAccount")}{" "}
               <button
                 type="button"
                 className="underline text-primary"
                 onClick={() => { setMode("register"); setError(""); }}
               >
-                Sign up
+                {t("auth.signUp")}
               </button>
             </p>
           ) : (
             <p>
-              Already have an account?{" "}
+              {t("auth.hasAccount")}{" "}
               <button
                 type="button"
                 className="underline text-primary"
                 onClick={() => { setMode("login"); setError(""); }}
               >
-                Sign in
+                {t("auth.signIn")}
               </button>
             </p>
           )}

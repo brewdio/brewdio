@@ -4,12 +4,14 @@ import { RecipeEditProvider } from "@/contexts/recipe-edit-context";
 import { RecipeMashSection } from "@/components/recipe-mash-section";
 import { useEffect } from "react";
 import { stores } from "@/lib/calculate";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/recipes/$recipeId_/mash")({
   component: RecipeMashComponent,
 });
 
 function RecipeMashComponent() {
+  const { t } = useTranslation();
   const { recipeId } = Route.useParams();
   const { data: recipe, status } = useRecipe(recipeId);
 
@@ -23,11 +25,11 @@ function RecipeMashComponent() {
   }, [recipe]);
 
   if (status === "pending") {
-    return <div>Loading recipe...</div>;
+    return <div>{t("recipes.loadingOne")}</div>;
   }
 
   if (!recipe) {
-    return <div>Recipe not found</div>;
+    return <div>{t("recipes.notFound")}</div>;
   }
 
   return (

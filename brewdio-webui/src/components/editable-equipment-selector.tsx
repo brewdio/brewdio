@@ -19,7 +19,9 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { getEquipment, type EquipmentProfile, type EquipmentType } from "brewdio-wasm";
+import type { EquipmentProfile, EquipmentType } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
+import { useEquipmentProfiles } from "@/lib/db/equipment";
 
 const NONE_VALUE = "__none__";
 
@@ -34,12 +36,13 @@ export function EditableEquipmentSelector({
   onSave,
   className,
 }: EditableEquipmentSelectorProps) {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedName, setSelectedName] = useState(equipment?.name ?? NONE_VALUE);
   const [isSaving, setIsSaving] = useState(false);
   const [pendingProfile, setPendingProfile] = useState<EquipmentProfile | null>(null);
 
-  const profiles = getEquipment();
+  const { data: profiles = [] } = useEquipmentProfiles();
 
   const handleSave = async () => {
     const currentName = equipment?.name ?? NONE_VALUE;
@@ -103,7 +106,7 @@ export function EditableEquipmentSelector({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE_VALUE}>No Equipment</SelectItem>
+              <SelectItem value={NONE_VALUE}>{t("equipment.none")}</SelectItem>
               {profiles.map((p) => (
                 <SelectItem key={p.equipment.name} value={p.equipment.name}>
                   {p.equipment.name} ({p.efficiency.brewhouse.value}%)
@@ -143,7 +146,7 @@ export function EditableEquipmentSelector({
       ) : (
         <div className={cn("flex items-center gap-1 group", className)}>
           <p className="text-xs text-muted-foreground/70">
-            {equipment?.name ?? "No Equipment"}
+            {equipment?.name ?? t("equipment.none")}
           </p>
           <Button
             size="sm"
@@ -159,17 +162,17 @@ export function EditableEquipmentSelector({
       <AlertDialog open={!!pendingProfile} onOpenChange={(open) => { if (!open) handleCancelConfirm(); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Change Equipment</AlertDialogTitle>
+            <AlertDialogTitle>{t("equipment.changeTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will set brewhouse efficiency to{" "}
+              {t("equipment.changeDescriptionBefore")}{" "}
               <strong>{pendingProfile?.efficiency.brewhouse.value}%</strong>,
-              overwriting the current value. Continue?
+              {" "}{t("equipment.changeDescriptionAfter")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
-              Continue
+              {t("common.continue")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

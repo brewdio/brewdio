@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { gallonsToUnit, type DisplayVolumeUnit } from '@/lib/volume-units';
 
 // --- Types ---
 
@@ -18,6 +20,12 @@ interface BreweryVisualizationProps {
   stages: CalculatedStage[];
   beerColor: string;
   totalWaterNeeded: number;
+  strikeWater: number;
+  spargeWater: number;
+  grainVolume: number;
+  mashVolume: number;
+  mashCapacity: number;
+  volumeUnit: DisplayVolumeUnit;
   selectedStageId?: string | null;
   onBeerColorChange?: (color: string) => void;
   onStageSelect?: (stageId: string) => void;
@@ -42,10 +50,11 @@ const getTankPath = (shape: TankShape, w: number, h: number): string => {
     case 'dome': // Mash Tun
       return `M0,${h} V40 Q${w/2},0 ${w},40 V${h} Z`;
 
-    case 'chimney': // Kettle
+    case 'chimney': { // Kettle
       const neckW = w * 0.4;
       const neckX = (w - neckW) / 2;
       return `M0,${h} V40 H${neckX} V5 H${neckX + neckW} V40 H${w} V${h} Z`;
+    }
 
     case 'conical': // Fermenter
       return `M0,0 H${w} V${h} L${w/2},${h + CONE_DROP} L0,${h} Z`;
@@ -75,12 +84,20 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
   stages,
   beerColor,
   totalWaterNeeded,
+  strikeWater,
+  spargeWater,
+  grainVolume,
+  mashVolume,
+  mashCapacity,
+  volumeUnit,
   selectedStageId,
   onBeerColorChange,
   onStageSelect
 }) => {
+  const { t } = useTranslation();
   // Find the maximum loss for normalization
   const maxLoss = Math.max(...stages.map(s => s.totalLoss), 0.1); // Min 0.1 to avoid division by zero
+  const mashCapacityExceeded = grainVolume > mashCapacity;
 
   return (
     <div className="relative bg-slate-800 rounded-lg p-4 border border-slate-700">
@@ -93,20 +110,62 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
               onClick={() => onBeerColorChange(c)}
               className={`w-5 h-5 rounded-full border-2 transition-all ${beerColor === c ? 'border-white scale-110' : 'border-slate-600 hover:border-slate-400'}`}
               style={{ backgroundColor: c }}
-              title="Change beer color"
+              title={t("brewery.changeBeerColor")}
             />
           ))}
         </div>
       )}
 
-      {/* Total Start Volume - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-10">
+      {/* Water split - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-10 flex gap-5 rounded-lg border border-slate-700 bg-slate-900/85 px-4 py-2 backdrop-blur-sm">
         <div className="text-right">
-          <div className="text-2xl font-black text-blue-400 tabular-nums">
-            {totalWaterNeeded.toFixed(2)} <span className="text-sm text-slate-400">gal</span>
+          <div className="text-lg font-black text-cyan-400 tabular-nums">
+            {gallonsToUnit(strikeWater, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
           </div>
-          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Total Start Volume</div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.strikeWater")}
+          </div>
         </div>
+        <div className="text-right">
+          <div className="text-lg font-black text-sky-400 tabular-nums">
+            {gallonsToUnit(spargeWater, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
+          </div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.spargeWater")}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-lg font-black text-blue-400 tabular-nums">
+            {gallonsToUnit(totalWaterNeeded, volumeUnit).toFixed(2)}{" "}
+            <span className="text-xs text-slate-400">{volumeUnit}</span>
+          </div>
+          <div className="text-[9px] uppercase tracking-widest text-slate-500 font-bold">
+            {t("brewery.totalWater")}
+          </div>
+        </div>
+      </div>
+
+      {/* Mash capacity - Top Right */}
+      <div className="absolute right-4 top-4 z-10 rounded-lg border border-slate-700 bg-slate-900/85 px-3 py-2 text-right backdrop-blur-sm">
+        <div className={`text-sm font-bold tabular-nums ${mashCapacityExceeded ? "text-red-400" : "text-emerald-400"}`}>
+          {gallonsToUnit(mashVolume, volumeUnit).toFixed(2)} / {gallonsToUnit(mashCapacity, volumeUnit).toFixed(2)} {volumeUnit}
+        </div>
+        <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500">
+          {t("brewery.estimatedMashVolume")}
+        </div>
+        <div className="text-[9px] text-slate-500">
+          {t("brewery.grainVolume", {
+            value: gallonsToUnit(grainVolume, volumeUnit).toFixed(2),
+            unit: volumeUnit,
+          })}
+        </div>
+        {mashCapacityExceeded && (
+          <div className="mt-1 text-[9px] font-bold text-red-400">
+            {t("brewery.mashCapacityExceeded")}
+          </div>
+        )}
       </div>
 
       {/* Visualization */}
@@ -241,7 +300,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
 
                 {/* Volume text */}
                 <text x={TANK_WIDTH/2} y={CYLINDER_HEIGHT/2} textAnchor="middle" fill="white" fontSize="18" fontWeight="800" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                  {stage.volumeIn.toFixed(2)}
+                  {gallonsToUnit(stage.volumeIn, volumeUnit).toFixed(2)} {volumeUnit}
                 </text>
               </g>
 
@@ -277,7 +336,7 @@ export const BreweryVisualization: React.FC<BreweryVisualizationProps> = ({
                         fontSize="10"
                         fontWeight="bold"
                       >
-                        -{stage.totalLoss.toFixed(2)}
+                        -{gallonsToUnit(stage.totalLoss, volumeUnit).toFixed(2)} {volumeUnit}
                       </text>
                     </g>
                   </g>

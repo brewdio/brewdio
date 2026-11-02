@@ -23,6 +23,8 @@ const PEER_ID: &str = "client";
 const DIRTY_CHECK_INTERVAL: Duration = Duration::from_secs(2);
 
 type WsSender = SplitSink<WebSocket, Message>;
+type OwnerId = Option<String>;
+type SyncNotification = (OwnerId, DocType, String);
 
 /// Persistent sync sessions keyed by (DocType, doc_id), kept alive for the connection.
 type Sessions = HashMap<(DocType, String), SyncSession>;
@@ -31,7 +33,7 @@ type Sessions = HashMap<(DocType, String), SyncSession>;
 #[derive(Clone)]
 pub struct ServerState {
     pub conn: Arc<Mutex<rusqlite::Connection>>,
-    pub notify_tx: broadcast::Sender<(DocType, String)>,
+    pub notify_tx: broadcast::Sender<SyncNotification>,
     pub auth_config: AuthConfig,
 }
 
@@ -40,28 +42,103 @@ pub struct WsQuery {
     token: Option<String>,
 }
 
+fn list_doc_ids_for_owner(
+    conn: &rusqlite::Connection,
+    doc_type: DocType,
+    user_id: &OwnerId,
+) -> Result<Vec<String>, brewdio_persistence::connection::DbError> {
+    match user_id {
+        Some(user_id) => crate::user_db::list_all_doc_ids_for_user(conn, doc_type, user_id),
+        None => db::list_all_doc_ids(conn, doc_type),
+    }
+}
+
+fn list_dirty_docs_for_owner(
+    conn: &rusqlite::Connection,
+    user_id: &OwnerId,
+) -> Result<Vec<(DocType, String)>, brewdio_persistence::connection::DbError> {
+    match user_id {
+        Some(user_id) => crate::user_db::list_dirty_docs_for_user(conn, user_id),
+        None => db::list_dirty_docs(conn),
+    }
+}
+
+fn owner_can_access_doc(
+    conn: &rusqlite::Connection,
+    doc_type: DocType,
+    doc_id: &str,
+    user_id: &OwnerId,
+) -> Result<bool, brewdio_persistence::connection::DbError> {
+    match user_id {
+        Some(user_id) => crate::user_db::doc_owned_by_user(conn, doc_type, doc_id, user_id),
+        None => Ok(true),
+    }
+}
+
+fn apply_new_doc_for_owner(
+    conn: &rusqlite::Connection,
+    doc_type: DocType,
+    doc_id: &str,
+    am_data: &[u8],
+    user_id: &OwnerId,
+) -> Result<(), brewdio_persistence::connection::DbError> {
+    conn.execute_batch("BEGIN IMMEDIATE;")?;
+    let result = (|| {
+        let exists = db::get_doc_am_data(conn, doc_type, doc_id)?.is_some();
+        if exists && !owner_can_access_doc(conn, doc_type, doc_id, user_id)? {
+            return Err(brewdio_persistence::connection::DbError(
+                "Document belongs to another user".to_string(),
+            ));
+        }
+
+        db::apply_remote_merge_doc(conn, doc_type, doc_id, am_data)?;
+        if !exists {
+            if let Some(user_id) = user_id {
+                crate::user_db::set_doc_user_id(conn, doc_type, doc_id, user_id)?;
+            }
+        }
+        Ok(())
+    })();
+
+    match result {
+        Ok(()) => {
+            conn.execute_batch("COMMIT;")?;
+            Ok(())
+        }
+        Err(error) => {
+            let _ = conn.execute_batch("ROLLBACK;");
+            Err(error)
+        }
+    }
+}
+
 pub async fn ws_upgrade(
     ws: WebSocketUpgrade,
     State(state): State<ServerState>,
     Query(query): Query<WsQuery>,
 ) -> impl IntoResponse {
-    if !state.auth_config.no_auth {
+    let user_id = if state.auth_config.no_auth {
+        None
+    } else {
         let token = match query.token {
             Some(t) => t,
             None => {
                 return (StatusCode::UNAUTHORIZED, "Missing authentication token").into_response();
             }
         };
-        if decode_token(&token, &state.auth_config.jwt_secret).is_err() {
-            return (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response();
+        match decode_token(&token, &state.auth_config.jwt_secret) {
+            Ok(claims) => Some(claims.sub),
+            Err(_) => {
+                return (StatusCode::UNAUTHORIZED, "Invalid or expired token").into_response();
+            }
         }
-    }
+    };
     eprintln!("[server] client connected");
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+    ws.on_upgrade(move |socket| handle_socket(socket, state, user_id))
 }
 
-async fn handle_socket(socket: WebSocket, state: ServerState) {
-    if let Err(e) = run_sync(socket, state).await {
+async fn handle_socket(socket: WebSocket, state: ServerState, user_id: OwnerId) {
+    if let Err(e) = run_sync(socket, state, user_id).await {
         eprintln!("[server] sync error: {}", e);
     }
     eprintln!("[server] client disconnected");
@@ -70,6 +147,7 @@ async fn handle_socket(socket: WebSocket, state: ServerState) {
 async fn run_sync(
     socket: WebSocket,
     state: ServerState,
+    user_id: OwnerId,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let conn = &state.conn;
     let (mut ws_tx, mut ws_rx) = socket.split();
@@ -89,20 +167,22 @@ async fn run_sync(
         }
     };
 
-    let (client_recipe_ids, client_batch_ids, client_settings_ids, client_equipment_profile_ids) = match client_hello {
+    let (client_recipe_ids, client_batch_ids, client_settings_ids, client_equipment_profile_ids, client_inventory_item_ids) = match client_hello {
         SyncMessage::Hello {
             recipe_ids,
             batch_ids,
             settings_ids,
             equipment_profile_ids,
+            inventory_item_ids,
             schema_version,
         } => {
             eprintln!(
-                "[server] received Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), schema_version={}",
+                "[server] received Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), {} inventory item(s), schema_version={}",
                 recipe_ids.len(),
                 batch_ids.len(),
                 settings_ids.len(),
                 equipment_profile_ids.len(),
+                inventory_item_ids.len(),
                 schema_version,
             );
 
@@ -131,6 +211,7 @@ async fn run_sync(
                 batch_ids.into_iter().collect::<HashSet<_>>(),
                 settings_ids.into_iter().collect::<HashSet<_>>(),
                 equipment_profile_ids.into_iter().collect::<HashSet<_>>(),
+                inventory_item_ids.into_iter().collect::<HashSet<_>>(),
             )
         }
         _ => return Err("Expected Hello from client".into()),
@@ -143,27 +224,30 @@ async fn run_sync(
     }
 
     // --- Send server Hello ---
-    let (local_recipe_ids, local_batch_ids, local_settings_ids, local_equipment_profile_ids) = {
+    let (local_recipe_ids, local_batch_ids, local_settings_ids, local_equipment_profile_ids, local_inventory_item_ids) = {
         let c = conn.lock().unwrap_or_else(|e| e.into_inner());
         (
-            db::list_all_doc_ids(&*c, DocType::Recipe)?,
-            db::list_all_doc_ids(&*c, DocType::Batch)?,
-            db::list_all_doc_ids(&*c, DocType::Settings)?,
-            db::list_all_doc_ids(&*c, DocType::EquipmentProfile)?,
+            list_doc_ids_for_owner(&c, DocType::Recipe, &user_id)?,
+            list_doc_ids_for_owner(&c, DocType::Batch, &user_id)?,
+            list_doc_ids_for_owner(&c, DocType::Settings, &user_id)?,
+            list_doc_ids_for_owner(&c, DocType::EquipmentProfile, &user_id)?,
+            list_doc_ids_for_owner(&c, DocType::InventoryItem, &user_id)?,
         )
     };
     eprintln!(
-        "[server] sending Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s)",
+        "[server] sending Hello with {} recipe(s), {} batch(es), {} settings, {} equipment_profile(s), {} inventory item(s)",
         local_recipe_ids.len(),
         local_batch_ids.len(),
         local_settings_ids.len(),
-        local_equipment_profile_ids.len()
+        local_equipment_profile_ids.len(),
+        local_inventory_item_ids.len()
     );
     let hello = SyncMessage::Hello {
         recipe_ids: local_recipe_ids.clone(),
         batch_ids: local_batch_ids.clone(),
         settings_ids: local_settings_ids.clone(),
         equipment_profile_ids: local_equipment_profile_ids.clone(),
+        inventory_item_ids: local_inventory_item_ids.clone(),
         schema_version: SCHEMA_VERSION,
     };
     ws_tx
@@ -171,11 +255,12 @@ async fn run_sync(
         .await?;
 
     // Send NewDoc for server-only docs and initiate sync for shared docs
-    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 4] = [
+    let local_sets: [(DocType, HashSet<String>, &HashSet<String>); 5] = [
         (DocType::Recipe, local_recipe_ids.into_iter().collect(), &client_recipe_ids),
         (DocType::Batch, local_batch_ids.into_iter().collect(), &client_batch_ids),
         (DocType::Settings, local_settings_ids.into_iter().collect(), &client_settings_ids),
         (DocType::EquipmentProfile, local_equipment_profile_ids.into_iter().collect(), &client_equipment_profile_ids),
+        (DocType::InventoryItem, local_inventory_item_ids.into_iter().collect(), &client_inventory_item_ids),
     ];
 
     for (doc_type, local_ids, client_ids) in &local_sets {
@@ -217,7 +302,7 @@ async fn run_sync(
             );
         }
         for id in &shared_ids {
-            send_sync_for_doc(conn, &mut sessions, &mut ws_tx, *doc_type, id).await?;
+            send_sync_for_doc(conn, &mut sessions, &mut ws_tx, *doc_type, id, &user_id).await?;
         }
     }
 
@@ -231,7 +316,7 @@ async fn run_sync(
             msg = ws_rx.next() => {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
-                        handle_incoming(conn, &state.notify_tx, &mut sessions, &mut ws_tx, &text).await?;
+                        handle_incoming(conn, &state.notify_tx, &mut sessions, &mut ws_tx, &text, &user_id).await?;
                     }
                     Some(Ok(Message::Close(_))) | None => {
                         return Ok(());
@@ -242,21 +327,23 @@ async fn run_sync(
             }
             // Broadcast notification: another connection received a change
             notification = notify_rx.recv() => {
-                if let Ok((doc_type, doc_id)) = notification {
-                    eprintln!("[server] broadcast: pushing {:?}/{} to client", doc_type, doc_id);
-                    send_sync_for_doc(conn, &mut sessions, &mut ws_tx, doc_type, &doc_id).await?;
+                if let Ok((notification_owner, doc_type, doc_id)) = notification {
+                    if notification_owner == user_id {
+                        eprintln!("[server] broadcast: pushing {:?}/{} to client", doc_type, doc_id);
+                        send_sync_for_doc(conn, &mut sessions, &mut ws_tx, doc_type, &doc_id, &user_id).await?;
+                    }
                 }
             }
             _ = dirty_interval.tick() => {
                 let dirty = {
                     let c = conn.lock().unwrap_or_else(|e| e.into_inner());
-                    db::list_dirty_docs(&*c)?
+                    list_dirty_docs_for_owner(&c, &user_id)?
                 };
                 if !dirty.is_empty() {
                     eprintln!("[server] pushing {} dirty doc(s)", dirty.len());
                 }
                 for (doc_type, id) in &dirty {
-                    send_sync_for_doc(conn, &mut sessions, &mut ws_tx, *doc_type, id).await?;
+                    send_sync_for_doc(conn, &mut sessions, &mut ws_tx, *doc_type, id, &user_id).await?;
                 }
             }
         }
@@ -291,7 +378,15 @@ async fn send_sync_for_doc(
     ws_tx: &mut WsSender,
     doc_type: DocType,
     doc_id: &str,
+    user_id: &OwnerId,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    {
+        let c = conn.lock().unwrap_or_else(|e| e.into_inner());
+        if !owner_can_access_doc(&c, doc_type, doc_id, user_id)? {
+            return Ok(());
+        }
+    }
+
     let session = match get_or_create_session(conn, sessions, doc_type, doc_id) {
         Some(s) => s,
         None => return Ok(()),
@@ -330,10 +425,11 @@ async fn send_sync_for_doc(
 /// Broadcasts notifications to other connections when changes are received.
 async fn handle_incoming(
     conn: &Arc<Mutex<rusqlite::Connection>>,
-    notify_tx: &broadcast::Sender<(DocType, String)>,
+    notify_tx: &broadcast::Sender<SyncNotification>,
     sessions: &mut Sessions,
     ws_tx: &mut WsSender,
     text: &str,
+    user_id: &OwnerId,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let msg: SyncMessage = serde_json::from_str(text)?;
 
@@ -350,13 +446,13 @@ async fn handle_incoming(
                 am_data.len()
             );
             let c = conn.lock().unwrap_or_else(|e| e.into_inner());
-            db::apply_remote_merge_doc(&*c, doc_type, &doc_id, am_data)?;
+            apply_new_doc_for_owner(&c, doc_type, &doc_id, am_data, user_id)?;
             sessions.insert(
                 (doc_type, doc_id.clone()),
                 SyncSession::from_doc_bytes(am_data),
             );
             // Notify other connections
-            let _ = notify_tx.send((doc_type, doc_id));
+            let _ = notify_tx.send((user_id.clone(), doc_type, doc_id));
         }
         SyncMessage::SyncDoc {
             doc_type,
@@ -364,6 +460,13 @@ async fn handle_incoming(
             data,
         } => {
             eprintln!("[server] received SyncDoc for {:?}/{}", doc_type, doc_id);
+
+            {
+                let c = conn.lock().unwrap_or_else(|e| e.into_inner());
+                if !owner_can_access_doc(&c, doc_type, &doc_id, user_id)? {
+                    return Err("Document belongs to another user".into());
+                }
+            }
 
             let session = match get_or_create_session(conn, sessions, doc_type, &doc_id) {
                 Some(s) => s,
@@ -394,7 +497,7 @@ async fn handle_incoming(
                 db::clear_dirty_doc(&*c, doc_type, &doc_id)?;
             }
             // Notify other connections
-            let _ = notify_tx.send((doc_type, doc_id));
+            let _ = notify_tx.send((user_id.clone(), doc_type, doc_id));
         }
         SyncMessage::Hello { .. } => {
             eprintln!("[server] unexpected mid-session Hello, ignoring");

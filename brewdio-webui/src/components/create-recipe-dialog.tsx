@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface CreateRecipeDialogProps {
   open?: boolean;
@@ -23,12 +24,14 @@ interface CreateRecipeDialogProps {
 }
 
 export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: CreateRecipeDialogProps = {}) {
+  const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
   const navigate = useNavigate();
   const { data: settings } = useSettings();
   const availableStyles = getAvailableStyles();
+  const batchSizeUnit = settings?.defaultVolumeUnit ?? "gal";
 
   const form = useForm({
     defaultValues: {
@@ -41,6 +44,7 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
         const recipeId = await createRecipe({
           name: value.name,
           batchSize: parseFloat(value.batchSize),
+          batchSizeUnit,
           styleName: value.styleName,
           author: settings?.defaultAuthor || "Brewdio User",
         });
@@ -64,15 +68,15 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
         <DialogTrigger asChild>
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
-            Create Recipe
+            {t("recipes.createAction")}
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Create New Recipe</DialogTitle>
+          <DialogTitle>{t("recipes.createTitle")}</DialogTitle>
           <DialogDescription>
-            Enter the details for your new brewing recipe.
+            {t("recipes.createDescription")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -87,18 +91,18 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
             name="name"
             validators={{
               onChange: ({ value }) =>
-                !value ? "Recipe name is required" : undefined,
+                !value ? t("recipes.nameRequired") : undefined,
             }}
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Recipe Name</Label>
+                <Label htmlFor={field.name}>{t("recipes.nameLabel")}</Label>
                 <Input
                   id={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="e.g., West Coast IPA"
+                  placeholder={t("recipes.namePlaceholder")}
                 />
                 {field.state.meta.errors && (
                   <p className="text-sm text-destructive">
@@ -115,7 +119,7 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
               onChange: ({ value }) => {
                 const num = parseFloat(value);
                 if (isNaN(num) || num <= 0) {
-                  return "Batch size must be a positive number";
+                  return t("recipes.batchSizePositive");
                 }
                 return undefined;
               },
@@ -123,7 +127,9 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Batch Size (gallons)</Label>
+                <Label htmlFor={field.name}>
+                  {t("recipes.batchSizeWithUnitLabel", { unit: batchSizeUnit })}
+                </Label>
                 <Input
                   id={field.name}
                   type="number"
@@ -147,12 +153,12 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
             name="styleName"
             validators={{
               onChange: ({ value }) =>
-                !value ? "Style selection is required" : undefined,
+                !value ? t("recipes.styleRequired") : undefined,
             }}
           >
             {(field) => (
               <div className="space-y-2">
-                <Label htmlFor={field.name}>Beer Style</Label>
+                <Label htmlFor={field.name}>{t("recipes.beerStyleLabel")}</Label>
                 <Combobox
                   options={availableStyles.map((s) => ({
                     value: s.name,
@@ -160,9 +166,9 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
                   }))}
                   value={field.state.value}
                   onValueChange={field.handleChange}
-                  placeholder="Select a beer style"
-                  searchPlaceholder="Search styles..."
-                  emptyText="No style found."
+                  placeholder={t("recipes.selectStyle")}
+                  searchPlaceholder={t("recipes.searchStyles")}
+                  emptyText={t("recipes.noStyleFound")}
                 />
                 {field.state.meta.errors && (
                   <p className="text-sm text-destructive">
@@ -179,14 +185,14 @@ export function CreateRecipeDialog({ open: controlledOpen, onOpenChange }: Creat
               variant="outline"
               onClick={() => setOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <form.Subscribe
               selector={(state) => [state.canSubmit, state.isSubmitting]}
             >
               {([canSubmit, isSubmitting]) => (
                 <Button type="submit" disabled={!canSubmit || isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create Recipe"}
+                  {isSubmitting ? t("recipes.creating") : t("recipes.createAction")}
                 </Button>
               )}
             </form.Subscribe>

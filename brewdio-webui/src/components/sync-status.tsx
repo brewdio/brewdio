@@ -2,22 +2,26 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { getSyncStatus, onSyncStatusChange } from "@/lib/sync";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { useTranslation } from "react-i18next";
 
 type SyncStatusType = ReturnType<typeof getSyncStatus>;
 
 const statusConfig: Record<
   SyncStatusType | "offline",
-  { label: string; dotClass: string }
+  { labelKey: string; dotClass: string }
 > = {
-  offline: { label: "Offline", dotClass: "bg-gray-400" },
-  disconnected: { label: "Disconnected", dotClass: "bg-gray-400" },
-  connecting: { label: "Connecting", dotClass: "bg-yellow-400" },
-  connected: { label: "Connected", dotClass: "bg-green-400" },
-  client_outdated: { label: "Update App", dotClass: "bg-orange-400" },
-  server_outdated: { label: "Update Server", dotClass: "bg-orange-400" },
+  offline: { labelKey: "settings.sync.status.offline", dotClass: "bg-gray-400" },
+  disconnected: { labelKey: "settings.sync.status.disconnected", dotClass: "bg-gray-400" },
+  connecting: { labelKey: "settings.sync.status.connecting", dotClass: "bg-yellow-400" },
+  connected: { labelKey: "settings.sync.status.connected", dotClass: "bg-green-400" },
+  client_outdated: { labelKey: "settings.sync.status.clientOutdated", dotClass: "bg-orange-400" },
+  server_outdated: { labelKey: "settings.sync.status.serverOutdated", dotClass: "bg-orange-400" },
+  authentication_required: { labelKey: "settings.sync.status.authenticationRequired", dotClass: "bg-orange-400" },
+  connection_error: { labelKey: "settings.sync.status.connectionError", dotClass: "bg-red-400" },
 };
 
 export function SyncStatus() {
+  const { t } = useTranslation();
   const serverConfigured = !!localStorage.getItem("brewdio_server");
   const [status, setStatus] = useState<SyncStatusType>(getSyncStatus());
 
@@ -26,7 +30,8 @@ export function SyncStatus() {
   }, []);
 
   const displayStatus = serverConfigured ? status : "offline";
-  const { label, dotClass } = statusConfig[displayStatus];
+  const { labelKey, dotClass } = statusConfig[displayStatus];
+  const label = t(labelKey);
 
   return (
     <SidebarMenuButton tooltip={label} asChild>

@@ -14,6 +14,7 @@ import { Screw } from "@/components/screw";
 import { srmToSrgb, rgbToHex, colorToSrm, styleForRecipe, calculateWater } from "brewdio-wasm";
 import { GrainIcon, HopIcon, YeastIcon } from "@/components/ingredient-icons";
 import type { FermentableAdditionType, RecipeType, EquipmentType, VolumeUnitType, TimeUnitType, WaterCalculatorResult } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 /**
  * Get hex color for a fermentable based on its SRM value
@@ -50,9 +51,10 @@ export function RecipeDetailView({
   updateRecipe,
   headerSlot,
   alertSlot,
-  notesLabel = "Notes",
-  notesPlaceholder = "Add brewing notes, recipe history, tasting notes, etc...",
+  notesLabel,
+  notesPlaceholder,
 }: RecipeDetailViewProps) {
+  const { t } = useTranslation();
   const og = useCalculation<number>("og");
   const fg = useCalculation<number>("fg");
   const abv = useCalculation<number>("abv");
@@ -302,18 +304,18 @@ export function RecipeDetailView({
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="border rounded-lg p-4">
-          <h2 className="text-xl font-semibold mb-3">Recipe Details</h2>
+          <h2 className="text-xl font-semibold mb-3">{t("recipes.detailsTitle")}</h2>
           <div className="grid grid-cols-[1fr_auto] gap-y-1 gap-x-4 items-center">
             <InlineEditableWithUnit
               value={beerRecipe.batch_size.value}
               unit={beerRecipe.batch_size.unit}
               availableUnits={["gal", "l", "ml"]}
               onSave={handleBatchSizeUpdate}
-              label="Batch Size"
+              label={t("recipes.batchSizeLabel")}
             />
             {calculatedBoilSize && (
               <>
-                <span className="font-medium text-sm py-1">Boil Size</span>
+                <span className="font-medium text-sm py-1">{t("recipes.boilSizeLabel")}</span>
                 <span className="text-sm">
                   <span className="font-semibold">{calculatedBoilSize.value.toFixed(2)}</span>{" "}
                   <span className="text-muted-foreground">{calculatedBoilSize.unit}</span>
@@ -326,7 +328,7 @@ export function RecipeDetailView({
                 unit={beerRecipe.boil.boil_time.unit}
                 availableUnits={["min", "hr"]}
                 onSave={handleBoilTimeUpdate}
-                label="Boil Time"
+                label={t("recipes.boilTimeLabel")}
               />
             )}
             {beerRecipe.efficiency && (
@@ -335,18 +337,18 @@ export function RecipeDetailView({
                 unit="%"
                 availableUnits={["%"]}
                 onSave={handleEfficiencyUpdate}
-                label="Brewhouse Efficiency"
+                label={t("recipes.brewhouseEfficiencyLabel")}
               />
             )}
           </div>
         </div>
 
         <div className="border rounded-lg p-4">
-          <h2 className="text-xl font-semibold mb-3">{notesLabel}</h2>
+          <h2 className="text-xl font-semibold mb-3">{notesLabel ?? t("recipes.notesLabel")}</h2>
           <EditableNotes
             value={beerRecipe.notes || ""}
             onSave={handleNotesUpdate}
-            placeholder={notesPlaceholder}
+            placeholder={notesPlaceholder ?? t("recipes.notesPlaceholder")}
           />
         </div>
       </div>
@@ -358,12 +360,12 @@ export function RecipeDetailView({
 
       <div id="fermentables" className="border rounded-lg p-4 scroll-mt-20">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold">Fermentables</h2>
+          <h2 className="text-xl font-semibold">{t("recipes.fermentables")}</h2>
           <AddFermentableDialog />
         </div>
         {beerRecipe.ingredients.fermentable_additions?.length === 0 ? (
           <div className="text-muted-foreground text-sm">
-            No fermentables added yet
+            {t("recipes.noFermentables")}
           </div>
         ) : (
           <div className="space-y-2">
@@ -378,7 +380,7 @@ export function RecipeDetailView({
                     srmColor={getFermentableColorHex(ferm)}
                   />
                   <span className="font-medium">
-                    {ferm.name || "Unnamed fermentable"}
+                    {ferm.name || t("recipes.unnamedFermentable")}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -415,11 +417,11 @@ export function RecipeDetailView({
 
       <div id="hops" className="border rounded-lg p-4 scroll-mt-20">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold">Hops</h2>
+          <h2 className="text-xl font-semibold">{t("recipes.hops")}</h2>
           <AddHopDialog />
         </div>
         {beerRecipe.ingredients.hop_additions?.length === 0 ? (
-          <div className="text-muted-foreground text-sm">No hops added yet</div>
+          <div className="text-muted-foreground text-sm">{t("recipes.noHops")}</div>
         ) : (
           <div className="space-y-2">
             {beerRecipe.ingredients.hop_additions?.map((hop, idx) => (
@@ -431,12 +433,12 @@ export function RecipeDetailView({
                   <HopIcon className="h-6 w-6 flex-shrink-0" />
                   <div>
                     <span className="font-medium">
-                      {hop.name || "Unnamed hop"}
+                      {hop.name || t("recipes.unnamedHop")}
                     </span>
                     {hop.timing && (
                       <span className="text-muted-foreground ml-2">
-                        {hop.timing.use === "add_to_boil" && "Boil"}
-                        {hop.timing.use === "add_to_fermentation" && "Dry Hop"}
+                        {hop.timing.use === "add_to_boil" && t("recipes.hopBoil")}
+                        {hop.timing.use === "add_to_fermentation" && t("recipes.dryHop")}
                         {hop.timing.time && (
                           <>
                             {" "}
@@ -487,12 +489,12 @@ export function RecipeDetailView({
 
       <div id="cultures" className="border rounded-lg p-4 scroll-mt-20">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-semibold">Cultures (Yeast)</h2>
+          <h2 className="text-xl font-semibold">{t("recipes.cultures")}</h2>
           <AddCultureDialog />
         </div>
         {beerRecipe.ingredients.culture_additions?.length === 0 ? (
           <div className="text-muted-foreground text-sm">
-            No cultures added yet
+            {t("recipes.noCultures")}
           </div>
         ) : (
           <div className="space-y-2">
@@ -504,7 +506,7 @@ export function RecipeDetailView({
                 <div className="flex items-center gap-1.5">
                   <YeastIcon className="h-6 w-6 flex-shrink-0" />
                   <span className="font-medium">
-                    {culture.name || "Unnamed culture"}
+                    {culture.name || t("recipes.unnamedCulture")}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

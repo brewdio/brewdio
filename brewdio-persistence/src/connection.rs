@@ -65,6 +65,18 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (doc_type, doc_id, peer_id)
     );
     "#,
+    // V4 → V5: Add synced inventory items
+    r#"
+    CREATE TABLE IF NOT EXISTS inventory_item (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        data TEXT NOT NULL,
+        am_data BLOB NOT NULL DEFAULT X'',
+        is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+        is_dirty BOOLEAN NOT NULL DEFAULT TRUE
+    );
+    "#,
 ];
 
 /// The current schema version, derived from the number of migrations applied.

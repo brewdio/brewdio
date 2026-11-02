@@ -10,12 +10,14 @@ import { useCallback, useEffect, useState } from "react";
 import { stores } from "@/lib/calculate";
 import { useCommandHandler } from "@/hooks/use-command";
 import type { RecipeType } from "brewdio-wasm";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/recipes/$recipeId")({
   component: RecipeDetailComponent,
 });
 
 function RecipeDetailComponent() {
+  const { t } = useTranslation();
   const { recipeId } = Route.useParams();
   const { data: recipe, status } = useRecipe(recipeId);
   const router = useRouter();
@@ -68,11 +70,11 @@ function RecipeDetailComponent() {
   );
 
   if (status === "pending") {
-    return <div>Loading recipe...</div>;
+    return <div>{t("recipes.loadingOne")}</div>;
   }
 
   if (!recipe) {
-    return <div>Recipe not found</div>;
+    return <div>{t("recipes.notFound")}</div>;
   }
 
   return (

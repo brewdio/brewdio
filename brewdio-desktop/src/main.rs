@@ -55,6 +55,11 @@ fn main() {
             commands::create_equipment_profile,
             commands::update_equipment_profile,
             commands::delete_equipment_profile,
+            commands::list_inventory_items,
+            commands::get_inventory_item,
+            commands::create_inventory_item,
+            commands::update_inventory_item,
+            commands::delete_inventory_item,
             commands::start_sync,
             commands::stop_sync,
         ])

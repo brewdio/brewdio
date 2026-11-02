@@ -4,12 +4,14 @@ import { RecipeEditProvider } from "@/contexts/recipe-edit-context";
 import { RecipeMashSection } from "@/components/recipe-mash-section";
 import { useEffect } from "react";
 import { stores } from "@/lib/calculate";
+import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/batches/$batchId_/mash")({
   component: BatchMashComponent,
 });
 
 function BatchMashComponent() {
+  const { t } = useTranslation();
   const { batchId } = Route.useParams();
   const { data: batch, status } = useBatch(batchId);
 
@@ -23,11 +25,11 @@ function BatchMashComponent() {
   }, [batch]);
 
   if (status === "pending") {
-    return <div>Loading batch...</div>;
+    return <div>{t("batches.loadingOne")}</div>;
   }
 
   if (!batch) {
-    return <div>Batch not found</div>;
+    return <div>{t("batches.notFound")}</div>;
   }
 
   return (

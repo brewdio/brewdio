@@ -2,7 +2,7 @@
 
 > A **local-first** homebrewing app designed to be powerful and fun to use.
 
-brewdio is a modern, privacy-focused brewing companion that puts you in control of your recipes and brew days. Everything runs locally—no accounts, no subscriptions. Optional multi-device sync via Automerge CRDTs.
+brewdio is a modern, privacy-focused brewing companion that puts you in control of your recipes, ingredients, and brew days. Core brewing features run locally with no account or subscription. An optional self-hosted server provides authenticated multi-device sync and integrations.
 
 ---
 
@@ -18,12 +18,26 @@ brewdio is a modern, privacy-focused brewing companion that puts you in control 
 ### Batch Tracking
 - **Brew Day Companion** — Read-only batch views perfect for following along during brewing
 - **Water Calculator** — Visual water requirement calculator with equipment-specific adjustments
+- **Capacity-Aware Mash Water** — Splits strike and sparge water while respecting kettle capacity and grain displacement
+- **Inventory-Aware Batches** — Deduct ingredients when a batch is created and restore them when that batch is deleted
 - **Batch Notes** — Markdown-enabled notes for documenting your process and results
+
+### Inventory Management
+- **Ingredient Inventory** — Track fermentables, hops, cultures, quantities, and best-before dates
+- **Recipe Integration** — Select ingredients from inventory while building recipes
+- **Shortage Planning** — Preview available stock and shortages before starting a batch
+- **FEFO Deductions** — Uses ingredients with the earliest best-before date first
 
 ### Multi-Device Sync
 - **Automerge CRDTs** — Conflict-free sync of recipes, batches, settings, and equipment profiles
-- **Relay Server** — Lightweight Rust server relays changes between connected clients in real-time
+- **Authenticated Server** — Self-hosted Rust server keeps each user's synchronized data isolated
 - **Auto-Reconnect** — Clients automatically reconnect and resume sync after disconnects
+
+### Integrations
+- **Scoped API Keys** — Create and revoke integration keys without exposing account credentials
+- **Recipe API** — Authenticated API for listing and reading Brewdio recipes
+- **Batch API** — Idempotent batch creation with server-calculated inventory deductions
+- **CraftBeerPi 4** — Optional plugin synchronizes recipes and starts Brewdio batches from CraftBeerPi
 
 ### AI Brewing Assistant
 - **Recipe Helper** — Chat-based assistant that can search ingredients, suggest styles, and create or modify recipes
@@ -37,6 +51,7 @@ brewdio is a modern, privacy-focused brewing companion that puts you in control 
 - **Two Interfaces** — Full-featured web UI and terminal UI sharing the same data layer and sync protocol
 - **Vim-Style TUI** — Navigate recipes, manage ingredients, and track batches entirely from the terminal with keyboard-driven workflows
 - **Dark Mode** — Beautiful dark mode support in the web UI
+- **English and Norwegian** — Switch the interface language from settings or follow the browser language
 - **Retro Dials** — Playful retro-cockpit gauge displays for calculated values
 - **Live Vitals** — Real-time OG, FG, ABV, IBU, and SRM with color-coded BJCP style range bars (TUI and web)
 - **Inline Editing** — Edit recipe values directly without cumbersome forms
@@ -63,7 +78,7 @@ brewdio/
 │   ├── protocol.rs            # Wire protocol (Hello, SyncDoc, NewDoc)
 │   └── sync_worker.rs         # Native background sync worker (tokio)
 ├── brewdio-wasm/          # wasm-bindgen bindings (core + persistence + SyncWorker)
-├── brewdio-server/        # Sync relay server (Axum + WebSocket + broadcast)
+├── brewdio-server/        # Authenticated sync and integration API server
 ├── brewdio-tui/           # Terminal UI (ratatui + tui-textarea)
 │   └── src/chat/              # AI chat client, tools, and UI
 └── brewdio-webui/         # React web frontend
@@ -84,7 +99,7 @@ brewdio/
 | `brewdio-core` | Brewing calculations, unit conversions, and ingredient/style data. Pure Rust, no I/O. |
 | `brewdio-persistence` | SQLite-backed storage with Automerge CRDT sync. Compiles to both native (rusqlite) and WASM (sqlite-wasm-rs). |
 | `brewdio-wasm` | wasm-bindgen bindings that expose core + persistence + SyncWorker to JavaScript/TypeScript. |
-| `brewdio-server` | Axum WebSocket relay server. Receives changes from one client and broadcasts to all others via `tokio::sync::broadcast`. |
+| `brewdio-server` | Self-hosted authenticated sync server and integration API for recipes, batches, and API keys. |
 | `brewdio-tui` | Terminal UI built with ratatui. Full recipe/batch/settings management with vim-style navigation, live vitals, ingredient search, equipment profiles, AI chat assistant, and background sync. |
 
 ### Terminal UI
@@ -129,7 +144,23 @@ The `brewdio-webui/` directory is a React + TypeScript frontend that consumes `b
 - All sync protocol logic (Hello handshake, NewDoc exchange, SyncDoc messages) lives in Rust
 - WebUI: `SyncWorker` WASM struct handles the protocol; JS handles only WebSocket transport (~100 lines)
 - TUI: native `sync_worker.rs` runs as a tokio background task
-- Server: relays changes between clients via broadcast channel; each connection maintains its own Automerge sessions
+- Server: authenticates clients, isolates data by user, persists synchronized documents, and broadcasts changes to that user's connected clients
+
+### CraftBeerPi Integration
+
+CraftBeerPi support is split across two repositories so the Brewdio application and
+the CraftBeerPi plugin can be installed and released independently:
+
+- **This repository** owns the Brewdio data model, inventory logic, authenticated
+  integration keys, Recipe API, and idempotent Batch API.
+- **[brewdio-craftbeerpi-plugin](https://github.com/sammynorway/brewdio-craftbeerpi-plugin)**
+  owns the CraftBeerPi 4 plugin, recipe conversion, synchronization, and CraftBeerPi
+  configuration.
+
+The plugin reads recipes using a key with the `recipes:read` scope. When a brew starts,
+it calls the Brewdio Batch API with `batches:write`; Brewdio creates the batch and
+calculates inventory deductions on the server. The plugin source is intentionally not
+duplicated in this repository.
 
 ---
 
@@ -228,7 +259,7 @@ brewdio uses [BeerJSON](https://beerjson.org/) as its native recipe format. This
 
 ## Local-First Philosophy
 
-- **Your Data, Your Device** — Everything is stored locally. No cloud servers required, no privacy concerns.
+- **Your Data, Your Device** — Core brewing data is stored locally; a server is only required for optional sync and integrations.
 - **Offline by Default** — Works without an internet connection. Perfect for brew days in the garage.
 - **CRDT Sync** — Optional multi-device sync via Automerge. Changes merge automatically, even after offline edits.
 - **No Vendor Lock-in** — Export your recipes as standard BeerJSON files and use them anywhere.
